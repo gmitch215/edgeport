@@ -67,8 +67,4 @@ MC4CAQAwBQYDK2VwBCIEIPPGnP1OPdTdAUzAf5iM/AsZ//kp00OKoDxsi/zPEmiL
 			loadUserKey({ pem: '-----BEGIN PRIVATE KEY-----\nbm90LWEta2V5\n-----END PRIVATE KEY-----' })
 		).rejects.toBeInstanceOf(AuthError);
 	});
-
-	it('rejects encrypted keys (passphrase) with AuthError', async () => {
-		await expect(loadUserKey({ pem: 'x', passphrase: 'secret' })).rejects.toBeInstanceOf(AuthError);
-	});
 });

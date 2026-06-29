@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { connect, exec } from '../../src/ssh/index';
+// encrypted PKCS#8 form of the same ed25519 key authorized in docker/compose.yml
+import encryptedKey from '../fixtures/ed25519_pkcs8_enc.pem?raw';
 
 const base = { hostname: '127.0.0.1', port: 2222, username: 'tester', password: 'testpass' };
 const dec = (b: Uint8Array) => new TextDecoder().decode(b);
@@ -52,6 +54,18 @@ it('authenticates with an ed25519 private key (publickey)', async () => {
 	});
 	expect(r.code).toBe(0);
 	expect(dec(r.stdout)).toContain('pk-ok');
+});
+
+it('authenticates with a passphrase-protected (encrypted) key', async () => {
+	const r = await exec({
+		hostname: '127.0.0.1',
+		port: 2222,
+		username: 'tester',
+		privateKey: { pem: encryptedKey, passphrase: 'secret' },
+		command: 'echo enc-pk-ok'
+	});
+	expect(r.code).toBe(0);
+	expect(dec(r.stdout)).toContain('enc-pk-ok');
 });
 
 it('interops with dropbear (a second SSH implementation)', async () => {
