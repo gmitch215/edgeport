@@ -34,8 +34,8 @@ jobs:
         run: bun run test
       - name: Build
         run: bun run build
-      - name: Stage publish to npm
-        run: npm stage publish --provenance --access public
+      - name: Publish to NPM
+        run: npm publish --provenance --access public
 
   release:
     runs-on: ubuntu-latest
