@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { AuthError } from '../../src/core/errors';
+import { AuthError, ProtocolError } from '../../src/core/errors';
 import { _connectOverSocket, type NatsConnection } from '../../src/nats';
+import { isDeliveredMessage, parseApiResponse, parsePubAck } from '../../src/nats/jetstream';
 import { parseCreds, signNonce } from '../../src/nats/nkey';
 import { mockConnection, type MockServerEnd } from '../mock-socket';
 
@@ -320,6 +321,50 @@ ${SEED}
 		expect(typeof json.sig).toBe('string');
 		expect(json.nkey).toBeUndefined();
 		expect(pingLine).toBe('PING');
+	});
+});
+
+describe('jetstream parsing helpers', () => {
+	const bytes = (s: string) => enc.encode(s);
+
+	it('parsePubAck reads stream + seq', () => {
+		const ack = parsePubAck(bytes('{"stream":"ORDERS","seq":7}'));
+		expect(ack.stream).toBe('ORDERS');
+		expect(ack.seq).toBe(7);
+		expect(ack.duplicate).toBeUndefined();
+	});
+
+	it('parsePubAck carries the duplicate flag', () => {
+		const ack = parsePubAck(bytes('{"stream":"S","seq":3,"duplicate":true}'));
+		expect(ack.duplicate).toBe(true);
+	});
+
+	it('parsePubAck throws ProtocolError on an API error body', () => {
+		expect(() =>
+			parsePubAck(bytes('{"error":{"err_code":10060,"description":"no stream matches"}}'))
+		).toThrow(ProtocolError);
+	});
+
+	it('parsePubAck throws ProtocolError when stream/seq are missing', () => {
+		expect(() => parsePubAck(bytes('{"foo":1}'))).toThrow(ProtocolError);
+		expect(() => parsePubAck(bytes('not json'))).toThrow(ProtocolError);
+	});
+
+	it('parseApiResponse swallows ignored err_codes (idempotent create)', () => {
+		const body = bytes('{"error":{"err_code":10058,"description":"stream name already in use"}}');
+		// 10058 ignored -> returns the parsed object instead of throwing
+		const res = parseApiResponse<{ error?: { err_code?: number } }>(body, [10058]);
+		expect(res.error?.err_code).toBe(10058);
+		// not ignored -> throws
+		expect(() => parseApiResponse(body, [])).toThrow(ProtocolError);
+	});
+
+	it('isDeliveredMessage tells a real msg from a status frame', () => {
+		// a real pulled message carries an ack inbox in reply
+		expect(isDeliveredMessage({ data: bytes('payload'), reply: '$JS.ACK.S.D.1.2.3' })).toBe(true);
+		// a 404/408 status frame has no reply subject (and usually no body)
+		expect(isDeliveredMessage({ data: new Uint8Array(0) })).toBe(false);
+		expect(isDeliveredMessage({ data: bytes('x'), reply: '' })).toBe(false);
 	});
 });
 

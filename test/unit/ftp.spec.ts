@@ -348,3 +348,85 @@ describe('ftp simple commands', () => {
 		});
 	});
 });
+
+// scripts the passive-open handshake the way the real EPSV/PASV path expects
+async function passiveOpen(server: MockServerEnd): Promise<void> {
+	expect(await server.readLine()).toBe('EPSV');
+	// reject EPSV so the client falls back to PASV (no real data socket to dial in the mock)
+	await server.writeLine('500 not understood');
+	expect(await server.readLine()).toBe('PASV');
+	// 127.0.0.1 port 0; the data connect will fail but only after the commands we assert are sent
+	await server.writeLine('227 Entering Passive Mode (127,0,0,1,0,0)');
+}
+
+describe('ftp TYPE / REST sequencing', () => {
+	it('get issues TYPE A before RETR in ascii mode', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('TYPE A');
+				await server.writeLine('200 type set to A');
+				await passiveOpen(server);
+				expect(await server.readLine()).toBe('RETR /a.txt');
+			})();
+			// the data dial to port 0 fails; we only care that the control sequence was correct
+			await expect(
+				Promise.all([session.get('/a.txt', { type: 'ascii' }), script])
+			).rejects.toBeTruthy();
+		});
+	});
+
+	it('does not re-issue TYPE I when already binary (the session default)', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				// no TYPE command: binary is the negotiated default, so the first line is EPSV
+				await passiveOpen(server);
+				expect(await server.readLine()).toBe('RETR /b.bin');
+			})();
+			await expect(Promise.all([session.get('/b.bin'), script])).rejects.toBeTruthy();
+		});
+	});
+
+	it('get issues REST <offset> after the data channel opens but before RETR', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				await passiveOpen(server);
+				expect(await server.readLine()).toBe('REST 1024');
+				await server.writeLine('350 restarting at 1024');
+				expect(await server.readLine()).toBe('RETR /big.bin');
+			})();
+			await expect(
+				Promise.all([session.get('/big.bin', { offset: 1024 }), script])
+			).rejects.toBeTruthy();
+		});
+	});
+
+	it('put issues REST <offset> before STOR for an offset resume', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				await passiveOpen(server);
+				expect(await server.readLine()).toBe('REST 512');
+				await server.writeLine('350 restarting at 512');
+				expect(await server.readLine()).toBe('STOR /big.bin');
+			})();
+			await expect(
+				Promise.all([session.put('/big.bin', new Uint8Array(4), { offset: 512 }), script])
+			).rejects.toBeTruthy();
+		});
+	});
+
+	it('put uses APPE (no REST) when append is set', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				await passiveOpen(server);
+				// no REST line; APPE is the next command after the passive open
+				expect(await server.readLine()).toBe('APPE /big.bin');
+			})();
+			await expect(
+				Promise.all([
+					session.put('/big.bin', new Uint8Array(4), { append: true, offset: 999 }),
+					script
+				])
+			).rejects.toBeTruthy();
+		});
+	});
+});

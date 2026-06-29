@@ -295,7 +295,86 @@ describe('stomp session type', () => {
 		expect(typeof session.send).toBe('function');
 		expect(typeof session.subscribe).toBe('function');
 		expect(typeof session.unsubscribe).toBe('function');
+		expect(typeof session.begin).toBe('function');
 		expect(typeof session.close).toBe('function');
+		await Promise.all([session.close(), disconnect(server)]);
+	});
+});
+
+describe('stomp transactions', () => {
+	it('emits BEGIN, a transaction-tagged SEND, and COMMIT', async () => {
+		const { socket, server } = mockConnection();
+		const [session] = await Promise.all([
+			_connectOverSocket(socket, { hostname: 'broker.test' }),
+			handshake(server)
+		]);
+
+		const tx = await session.begin();
+		const begin = await readFrame(server);
+		expect(begin.command).toBe('BEGIN');
+		expect(begin.headers['transaction']).toBe(tx.id);
+
+		await tx.send('/queue/x', 'hi');
+		const send = await readFrame(server);
+		expect(send.command).toBe('SEND');
+		expect(send.headers['transaction']).toBe(tx.id);
+		expect(send.headers['destination']).toBe('/queue/x');
+		expect(dec.decode(send.body)).toBe('hi');
+
+		await tx.commit();
+		const commit = await readFrame(server);
+		expect(commit.command).toBe('COMMIT');
+		expect(commit.headers['transaction']).toBe(tx.id);
+
+		await Promise.all([session.close(), disconnect(server)]);
+	});
+
+	it('emits ABORT to roll back a transaction', async () => {
+		const { socket, server } = mockConnection();
+		const [session] = await Promise.all([
+			_connectOverSocket(socket, { hostname: 'broker.test' }),
+			handshake(server)
+		]);
+
+		const tx = await session.begin();
+		expect((await readFrame(server)).command).toBe('BEGIN');
+		await tx.send('/queue/x', 'staged');
+		expect((await readFrame(server)).command).toBe('SEND');
+		await tx.abort();
+		const abort = await readFrame(server);
+		expect(abort.command).toBe('ABORT');
+		expect(abort.headers['transaction']).toBe(tx.id);
+
+		await Promise.all([session.close(), disconnect(server)]);
+	});
+});
+
+describe('stomp unsubscribe idempotency', () => {
+	it('writes UNSUBSCRIBE only once even if unsubscribed twice', async () => {
+		const { socket, server } = mockConnection();
+		const [session] = await Promise.all([
+			_connectOverSocket(socket, { hostname: 'broker.test' }),
+			handshake(server)
+		]);
+
+		const sub = session.subscribe('/queue/q');
+		const subFrame = await readFrame(server);
+		expect(subFrame.command).toBe('SUBSCRIBE');
+		const id = subFrame.headers['id']!;
+
+		await session.unsubscribe(id);
+		const unsub = await readFrame(server);
+		expect(unsub.command).toBe('UNSUBSCRIBE');
+
+		// a second unsubscribe for the same id must NOT hit the wire (would ERROR on brokers
+		// like ActiveMQ and kill the pump); the next frame the server sees is the SEND below
+		await session.unsubscribe(id);
+		await sub.unsubscribe(); // disposal-style second call - also a no-op on the wire
+		await session.send('/queue/q', 'still-alive');
+		const next = await readFrame(server);
+		expect(next.command).toBe('SEND');
+		expect(dec.decode(next.body)).toBe('still-alive');
+
 		await Promise.all([session.close(), disconnect(server)]);
 	});
 });
