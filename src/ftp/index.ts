@@ -44,6 +44,47 @@ export interface FtpConnectOptions {
 	timeoutMs?: number;
 }
 
+/**
+ * FTP transfer representation type.
+ *
+ * - `'binary'` issues `TYPE I` (image): bytes pass through unchanged. This is the default.
+ * - `'ascii'` issues `TYPE A`: the server performs end-of-line conversion between its native
+ *   line ending and the protocol `CRLF`. Use it for text files when the local and remote
+ *   platforms differ. On Linux servers (native LF) `TYPE A` and `TYPE I` are often byte-identical
+ *   since LF needs no conversion, but the command is still negotiated.
+ *
+ * @since 1.1.0
+ */
+export type FtpTransferType = 'binary' | 'ascii';
+
+/** Per-transfer options for {@link FtpSession.get} and {@link FtpSession.getStream}. */
+export interface FtpGetOptions {
+	/** Transfer representation type; defaults to `'binary'`. */
+	type?: FtpTransferType;
+	/**
+	 * Byte offset to resume the download from, issued as `REST <offset>` before `RETR`. The
+	 * returned bytes are the tail of the file starting at this offset. Resume offsets are only
+	 * meaningful for binary transfers.
+	 */
+	offset?: number;
+}
+
+/** Per-transfer options for {@link FtpSession.put}. */
+export interface FtpPutOptions {
+	/** Transfer representation type; defaults to `'binary'`. */
+	type?: FtpTransferType;
+	/**
+	 * Append to the destination via `APPE` instead of `STOR`. When set, `offset` is ignored.
+	 * Use this to resume an interrupted upload by sending only the remaining bytes.
+	 */
+	append?: boolean;
+	/**
+	 * Byte offset to resume the upload from, issued as `REST <offset>` before `STOR`, overwriting
+	 * the destination from that offset onward. Ignored when `append` is set.
+	 */
+	offset?: number;
+}
+
 /** A single directory entry returned by {@link FtpSession.list}. */
 export interface FtpEntry {
 	/** The entry's file or directory name. */
@@ -96,25 +137,34 @@ export interface FtpSession extends AsyncDisposable {
 	 */
 	nameList(path?: string): Promise<string[]>;
 	/**
-	 * Retrieves a file's bytes via `RETR` in binary mode.
+	 * Retrieves a file's bytes via `RETR`.
+	 *
+	 * Defaults to binary (`TYPE I`). Pass `{ type: 'ascii' }` for a text-mode transfer (`TYPE A`,
+	 * server line-ending conversion) or `{ offset }` to resume an interrupted download from a byte
+	 * offset (`REST <offset>` before `RETR`), in which case the returned bytes are the tail of the
+	 * file from that offset.
 	 *
 	 * @param path - Path of the file to fetch.
-	 * @returns The file's raw bytes.
+	 * @param opts - Optional transfer type and resume offset.
+	 * @returns The file's raw bytes (the tail from `opts.offset` when set).
 	 * @throws {ProtocolError} If the server rejects the command.
 	 * @since 1.0.0
 	 * @example
 	 * ```typescript
 	 * const bytes = await session.get('/pub/readme.txt');
+	 * const text = await session.get('/pub/readme.txt', { type: 'ascii' });
+	 * const tail = await session.get('/pub/big.bin', { offset: 1024 });
 	 * ```
 	 */
-	get(path: string): Promise<Uint8Array>;
+	get(path: string, opts?: FtpGetOptions): Promise<Uint8Array>;
 	/**
 	 * Retrieves a file as a stream via `RETR`, for payloads too large to buffer.
 	 *
 	 * The returned stream owns the data connection; read it to completion (or cancel it) so the
-	 * underlying socket closes.
+	 * underlying socket closes. Accepts the same `type` and `offset` options as {@link FtpSession.get}.
 	 *
 	 * @param path - Path of the file to fetch.
+	 * @param opts - Optional transfer type and resume offset.
 	 * @returns A readable stream of the file's bytes.
 	 * @throws {ProtocolError} If the server rejects the command.
 	 * @since 1.0.0
@@ -124,20 +174,27 @@ export interface FtpSession extends AsyncDisposable {
 	 * await stream.pipeTo(someWritable);
 	 * ```
 	 */
-	getStream(path: string): Promise<ReadableStream<Uint8Array>>;
+	getStream(path: string, opts?: FtpGetOptions): Promise<ReadableStream<Uint8Array>>;
 	/**
-	 * Stores bytes to a file via `STOR` in binary mode.
+	 * Stores bytes to a file via `STOR` (or `APPE`).
+	 *
+	 * Defaults to binary (`TYPE I`). Pass `{ type: 'ascii' }` for a text-mode transfer, or resume
+	 * an interrupted upload with `{ append: true }` (use `APPE`, sending only the remaining bytes)
+	 * or `{ offset }` (issue `REST <offset>` before `STOR`, overwriting from that offset).
 	 *
 	 * @param path - Destination path.
 	 * @param data - The bytes to write.
+	 * @param opts - Optional transfer type and resume mode (`append` or `offset`).
 	 * @throws {ProtocolError} If the server rejects the command.
 	 * @since 1.0.0
 	 * @example
 	 * ```typescript
 	 * await session.put('/incoming/report.csv', new TextEncoder().encode('a,b,c\n'));
+	 * // resume an upload that died after the first 1024 bytes
+	 * await session.put('/incoming/big.bin', rest, { append: true });
 	 * ```
 	 */
-	put(path: string, data: Uint8Array): Promise<void>;
+	put(path: string, data: Uint8Array, opts?: FtpPutOptions): Promise<void>;
 	/**
 	 * Deletes a file via `DELE`.
 	 *
@@ -416,8 +473,8 @@ export async function connect(opts: FtpConnectOptions): Promise<FtpSession> {
  * A one-shot convenience over {@link connect} that opens a session, runs {@link FtpSession.get},
  * and closes the connection before returning.
  *
- * @param opts - Connection, credential, and `path` options.
- * @returns The file's raw bytes.
+ * @param opts - Connection, credential, `path`, and optional transfer (`type`/`offset`) options.
+ * @returns The file's raw bytes (the tail from `opts.offset` when set).
  * @throws {AuthError} If the server rejects the credentials.
  * @throws {ConnectionError} If the connection cannot be established.
  * @throws {ProtocolError} If the server speaks the protocol incorrectly.
@@ -427,11 +484,14 @@ export async function connect(opts: FtpConnectOptions): Promise<FtpSession> {
  * import { getFile } from 'edgeport/ftp';
  *
  * const bytes = await getFile({ hostname: 'ftp.example.com', path: '/pub/readme.txt' });
+ * const text = await getFile({ hostname: 'ftp.example.com', path: '/a.txt', type: 'ascii' });
  * ```
  */
-export async function getFile(opts: FtpConnectOptions & { path: string }): Promise<Uint8Array> {
+export async function getFile(
+	opts: FtpConnectOptions & { path: string } & FtpGetOptions
+): Promise<Uint8Array> {
 	await using session = await connect(opts);
-	return session.get(opts.path);
+	return session.get(opts.path, { type: opts.type, offset: opts.offset });
 }
 
 /**
@@ -440,7 +500,8 @@ export async function getFile(opts: FtpConnectOptions & { path: string }): Promi
  * A one-shot convenience over {@link connect} that opens a session, runs {@link FtpSession.put},
  * and closes the connection before returning.
  *
- * @param opts - Connection, credential, `path`, and `data` options.
+ * @param opts - Connection, credential, `path`, `data`, and optional transfer
+ *   (`type`/`append`/`offset`) options.
  * @throws {AuthError} If the server rejects the credentials.
  * @throws {ConnectionError} If the connection cannot be established.
  * @throws {ProtocolError} If the server speaks the protocol incorrectly.
@@ -459,10 +520,14 @@ export async function getFile(opts: FtpConnectOptions & { path: string }): Promi
  * ```
  */
 export async function putFile(
-	opts: FtpConnectOptions & { path: string; data: Uint8Array }
+	opts: FtpConnectOptions & { path: string; data: Uint8Array } & FtpPutOptions
 ): Promise<void> {
 	await using session = await connect(opts);
-	await session.put(opts.path, opts.data);
+	await session.put(opts.path, opts.data, {
+		type: opts.type,
+		append: opts.append,
+		offset: opts.offset
+	});
 }
 
 /**
@@ -510,6 +575,8 @@ class FtpControl {
 	readonly #writer: FramedWriter;
 	readonly #timeoutMs: number | undefined;
 	readonly #host: string;
+	// tracks the negotiated TYPE so we only re-issue the command when it actually changes
+	#currentType: FtpTransferType = 'binary';
 
 	constructor(
 		reader: FramedReader,
@@ -521,6 +588,18 @@ class FtpControl {
 		this.#writer = writer;
 		this.#timeoutMs = timeoutMs;
 		this.#host = host;
+	}
+
+	// issues TYPE A / TYPE I only when the requested type differs from the negotiated one
+	async ensureType(type: FtpTransferType): Promise<void> {
+		if (this.#currentType === type) return;
+		this.expect(await this.command(type === 'ascii' ? 'TYPE A' : 'TYPE I'), 200);
+		this.#currentType = type;
+	}
+
+	// issues REST <offset> ahead of a transfer command (350 = restart marker accepted)
+	async rest(offset: number): Promise<void> {
+		this.expect(await this.command(`REST ${offset}`), 350);
 	}
 
 	// reads one logical reply, consuming all lines of a multiline block
@@ -588,10 +667,13 @@ class FtpSessionImpl implements FtpSession {
 		this.#socket = socket;
 	}
 
-	// shared download path: open data channel, send command, read to EOF, await completion
-	async #download(command: string): Promise<Uint8Array> {
+	// shared download path: open data channel, send command, read to EOF, await completion.
+	// REST must be sent on the control channel after the data channel is open but before the
+	// transfer command, so it is issued here rather than by the caller.
+	async #download(command: string, offset?: number): Promise<Uint8Array> {
 		const data = await this.#control.openPassive();
 		try {
+			if (offset) await this.#control.rest(offset);
 			// 150/125 preliminary, then bytes flow on the data channel
 			this.#control.expect(await this.#control.command(command), 150, 125);
 			const bytes = await drainReader(data.reader);
@@ -615,13 +697,16 @@ class FtpSessionImpl implements FtpSession {
 		return splitLines(bytes);
 	}
 
-	get(path: string): Promise<Uint8Array> {
-		return this.#download(`RETR ${path}`);
+	async get(path: string, opts?: FtpGetOptions): Promise<Uint8Array> {
+		await this.#control.ensureType(opts?.type ?? 'binary');
+		return this.#download(`RETR ${path}`, opts?.offset);
 	}
 
-	async getStream(path: string): Promise<ReadableStream<Uint8Array>> {
+	async getStream(path: string, opts?: FtpGetOptions): Promise<ReadableStream<Uint8Array>> {
+		await this.#control.ensureType(opts?.type ?? 'binary');
 		const data = await this.#control.openPassive();
 		try {
+			if (opts?.offset) await this.#control.rest(opts.offset);
 			this.#control.expect(await this.#control.command(`RETR ${path}`), 150, 125);
 		} catch (err) {
 			await data.close().catch(() => {});
@@ -646,10 +731,15 @@ class FtpSessionImpl implements FtpSession {
 		});
 	}
 
-	async put(path: string, data: Uint8Array): Promise<void> {
+	async put(path: string, data: Uint8Array, opts?: FtpPutOptions): Promise<void> {
+		await this.#control.ensureType(opts?.type ?? 'binary');
 		const conn = await this.#control.openPassive();
 		try {
-			this.#control.expect(await this.#control.command(`STOR ${path}`), 150, 125);
+			// APPE appends; otherwise STOR, optionally restarted at a byte offset via REST
+			const append = opts?.append ?? false;
+			const command = append ? `APPE ${path}` : `STOR ${path}`;
+			if (!append && opts?.offset) await this.#control.rest(opts.offset);
+			this.#control.expect(await this.#control.command(command), 150, 125);
 			await conn.writer.write(data);
 			// half-close the data channel to signal end of transfer
 			await conn.writer.close();
