@@ -79,3 +79,43 @@ it('interops with dropbear (a second SSH implementation)', async () => {
 	expect(r.code).toBe(0);
 	expect(dec(r.stdout)).toContain('dropbear-ok');
 });
+
+// dropbear allows local (direct-tcpip) forwarding by default; linuxserver/openssh disables it
+const fwd = { hostname: '127.0.0.1', port: 2223, username: 'tester', password: 'testpass' };
+
+it('tunnels to an internal service via direct-tcpip (forwardOut)', async () => {
+	await using ssh = await connect(fwd);
+	// reach the bastion's own sshd through the tunnel and read its banner
+	await using tun = await ssh.forwardOut('127.0.0.1', 2223);
+	const reader = tun.stdout.getReader();
+	const { value } = await reader.read();
+	expect(dec(value!)).toContain('SSH-2.0');
+});
+
+it('rejects forwarding to an unreachable port with ConnectionError', async () => {
+	await using ssh = await connect(fwd);
+	await expect(ssh.forwardOut('127.0.0.1', 1)).rejects.toMatchObject({ name: 'ConnectionError' });
+});
+
+// in-session key re-exchange (RFC 4253 section 9), manual and auto-triggered
+describe('key re-exchange (rekey)', () => {
+	it('manual rekey: the session keeps working after session.rekey()', async () => {
+		await using ssh = await connect(base);
+		expect(dec((await ssh.exec('echo before')).stdout)).toContain('before');
+		await ssh.rekey(); // client-initiated; resolves when new keys are installed
+		expect(dec((await ssh.exec('echo after')).stdout)).toContain('after');
+		await ssh.rekey(); // a second rekey on the same session must also work
+		expect((await ssh.exec('true')).code).toBe(0);
+	});
+
+	it('auto-rekey: a large transfer past a low byte threshold stays intact', async () => {
+		await using ssh = await connect({ ...base, rekeyThresholdBytes: 4096 });
+		// ~100 KB of output forces several auto-rekeys mid-stream; output must be complete + ordered
+		const r = await ssh.exec('seq 1 20000');
+		expect(r.code).toBe(0);
+		const lines = dec(r.stdout).trim().split('\n');
+		expect(lines.length).toBe(20000);
+		expect(lines[0]).toBe('1');
+		expect(lines[lines.length - 1]).toBe('20000');
+	});
+});
