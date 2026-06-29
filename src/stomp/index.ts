@@ -288,6 +288,28 @@ export interface StompSubscription extends AsyncIterable<StompMessage>, AsyncDis
 }
 
 /**
+ * A STOMP transaction (RFC frames `BEGIN`/`COMMIT`/`ABORT`). Sends made through it are
+ * staged by the broker and only delivered to subscribers on {@link StompTransaction.commit};
+ * {@link StompTransaction.abort} discards them.
+ *
+ * @since 1.0.0
+ */
+export interface StompTransaction {
+	/** The transaction id carried in the `transaction` header. */
+	readonly id: string;
+	/** Sends a message within the transaction (delivered only after `commit`). */
+	send(
+		destination: string,
+		body: Uint8Array | string,
+		opts?: { headers?: Record<string, string>; contentType?: string }
+	): Promise<void>;
+	/** Commits the transaction, releasing all staged sends. */
+	commit(): Promise<void>;
+	/** Aborts the transaction, discarding all staged sends. */
+	abort(): Promise<void>;
+}
+
+/**
  * A live STOMP session over a single socket.
  *
  * Obtain one from {@link connect}. A background pump reads the socket and routes frames, so sending,
@@ -330,6 +352,14 @@ export interface StompSession extends AsyncDisposable {
 	 * @returns Resolves once the `UNSUBSCRIBE` is written.
 	 */
 	unsubscribe(id: string): Promise<void>;
+	/**
+	 * Begins a transaction. Sends made through the returned {@link StompTransaction} are staged
+	 * by the broker until `commit()`; `abort()` discards them.
+	 *
+	 * @returns The open transaction.
+	 * @throws {ConnectionError} If the session is closed.
+	 */
+	begin(): Promise<StompTransaction>;
 	/**
 	 * Sends `DISCONNECT` with a receipt, waits for it, and closes the socket.
 	 *
@@ -407,6 +437,7 @@ class StompSessionImpl implements StompSession {
 	readonly #subs = new Map<string, Subscription>();
 	#subCounter = 0;
 	#receiptCounter = 0;
+	#txCounter = 0;
 	#closed = false;
 	// in-flight RECEIPT waiters keyed by receipt id; the pump resolves or rejects them
 	readonly #receipts = new Map<string, { resolve: () => void; reject: (e: Error) => void }>();
@@ -533,8 +564,33 @@ class StompSessionImpl implements StompSession {
 		await this.#sendUnsubscribe(id);
 	}
 
+	async begin(): Promise<StompTransaction> {
+		this.#assertOpen();
+		const id = `tx-${++this.#txCounter}`;
+		await this.#writer.write(encodeFrame('BEGIN', { transaction: id }));
+		const session = this;
+		return {
+			id,
+			async send(destination, body, opts) {
+				// the transaction header stages the SEND until COMMIT
+				await session.send(destination, body, {
+					contentType: opts?.contentType,
+					headers: { transaction: id, ...opts?.headers }
+				});
+			},
+			async commit() {
+				session.#assertOpen();
+				await session.#writer.write(encodeFrame('COMMIT', { transaction: id }));
+			},
+			async abort() {
+				session.#assertOpen();
+				await session.#writer.write(encodeFrame('ABORT', { transaction: id }));
+			}
+		};
+	}
+
 	async #sendUnsubscribe(id: string): Promise<void> {
-		this.#subs.delete(id);
+		if (!this.#subs.delete(id)) return;
 		if (this.#closed || this.#pumpError) return;
 		await this.#writer.write(encodeFrame('UNSUBSCRIBE', { id }));
 	}
