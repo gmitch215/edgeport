@@ -71,6 +71,8 @@ export interface ConnectOptions {
 	username?: string;
 	/** Optional password; encoded as bytes (a string is treated as UTF-8). */
 	password?: string | Uint8Array;
+	/** Optional Last Will and Testament the broker publishes if the client drops ungracefully. */
+	will?: { topic: string; payload: string | Uint8Array; qos?: 0 | 1 | 2; retain?: boolean };
 }
 
 /** Fields needed to build a PUBLISH packet. */
@@ -319,6 +321,11 @@ function concat(chunks: Uint8Array[]): Uint8Array {
 export function encodeConnect(opts: ConnectOptions): Uint8Array {
 	let flags = 0;
 	if (opts.cleanSession) flags |= 0x02;
+	if (opts.will) {
+		flags |= 0x04; // will flag
+		flags |= ((opts.will.qos ?? 0) & 0x03) << 3; // will qos
+		if (opts.will.retain) flags |= 0x20; // will retain
+	}
 	if (opts.username !== undefined) flags |= 0x80;
 	if (opts.password !== undefined) flags |= 0x40;
 
@@ -332,6 +339,13 @@ export function encodeConnect(opts: ConnectOptions): Uint8Array {
 		header,
 		encodeString(opts.clientId)
 	];
+	// payload order (v3.1.1): client id, [will topic, will payload], [username], [password]
+	if (opts.will) {
+		chunks.push(encodeString(opts.will.topic));
+		const wp =
+			typeof opts.will.payload === 'string' ? encoder.encode(opts.will.payload) : opts.will.payload;
+		chunks.push(encodeBinary(wp));
+	}
 	if (opts.username !== undefined) chunks.push(encodeString(opts.username));
 	if (opts.password !== undefined) {
 		const pw = typeof opts.password === 'string' ? encoder.encode(opts.password) : opts.password;

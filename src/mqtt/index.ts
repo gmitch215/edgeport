@@ -118,6 +118,11 @@ export interface MqttConnectOptions {
 	timeoutMs?: number;
 	/** Whether the broker should start a clean session (default true). */
 	cleanSession?: boolean;
+	/**
+	 * Last Will and Testament: the broker publishes this if the client drops without a clean
+	 * DISCONNECT (e.g. `close({ graceful: false })`), enabling offline detection.
+	 */
+	will?: { topic: string; payload: string | Uint8Array; qos?: 0 | 1 | 2; retain?: boolean };
 	/** Transport to use; `'tcp'` (default) or `'ws'` for MQTT-over-WebSocket. */
 	transport?: 'tcp' | 'ws';
 	/** WebSocket URL, required when `transport: 'ws'`. */
@@ -206,11 +211,14 @@ export interface MqttSession extends AsyncDisposable {
 	 */
 	unsubscribe(topicFilter: string): Promise<void>;
 	/**
-	 * Sends DISCONNECT and closes the transport.
+	 * Closes the connection. By default sends a clean DISCONNECT; pass `{ graceful: false }`
+	 * to drop the socket without one, which makes the broker publish the Last Will (used to
+	 * simulate an unexpected device disconnect).
 	 *
+	 * @param opts - `graceful` (default true): whether to send DISCONNECT first.
 	 * @returns Resolves once the transport is closed.
 	 */
-	close(): Promise<void>;
+	close(opts?: { graceful?: boolean }): Promise<void>;
 }
 
 // single-consumer push/pull queue backing one subscription's async iterator
@@ -490,15 +498,18 @@ class MqttSessionImpl implements MqttSession {
 		await this.#sendUnsubscribe(topicFilter);
 	}
 
-	async close(): Promise<void> {
+	async close(opts?: { graceful?: boolean }): Promise<void> {
 		if (this.#closed) return;
 		this.#closed = true;
 		if (this.#keepAliveHandle !== null) this.#scheduler.clear(this.#keepAliveHandle);
 		this.#endAll();
-		try {
-			await this.#transport.writePacket(encodeDisconnect());
-		} catch {
-			// peer may already be gone; close the transport regardless
+		// graceful (default) sends DISCONNECT; an abrupt close lets the broker fire the will
+		if (opts?.graceful !== false) {
+			try {
+				await this.#transport.writePacket(encodeDisconnect());
+			} catch {
+				// peer may already be gone; close the transport regardless
+			}
 		}
 		await this.#transport.close();
 	}
@@ -647,7 +658,8 @@ export async function _connectOverTransport(
 		keepAliveSeconds,
 		cleanSession: opts.cleanSession ?? true,
 		username: opts.username,
-		password: opts.password
+		password: opts.password,
+		will: opts.will
 	});
 	await transport.writePacket(connect);
 
