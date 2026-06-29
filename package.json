@@ -114,6 +114,14 @@
 		"vitest": "^4.1.9",
 		"wrangler": "^4.105.0"
 	},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gmitch215/edgeport.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gmitch215/edgeport/issues"
+  },
+  "homepage": "https://github.com/gmitch215/edgeport#readme",
 	"lint-staged": {
 		"*.{js,ts,json,yml,md}": "prettier --write"
 	}
