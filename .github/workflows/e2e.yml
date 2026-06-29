@@ -1,0 +1,46 @@
+name: Integration (E2E)
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Boot Integration Servers
+        run: docker compose -f docker/compose.yml up -d --wait
+      - name: Integration tests under workerd with coverage
+        run: bunx vitest run --coverage --reporter=default --reporter=junit --outputFile=test-report.junit.xml
+        env:
+          INTEGRATION: '1'
+      - name: Upload Coverage to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: integration
+          files: coverage/clover.xml
+      - name: Upload Test Results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: test_results
+          flags: integration
+          files: test-report.junit.xml
+      - name: Dump Server Logs on Failure
+        if: ${{ failure() }}
+        run: docker compose -f docker/compose.yml logs --no-color
+      - name: Teardown Servers
+        if: ${{ always() }}
+        run: docker compose -f docker/compose.yml down -v
