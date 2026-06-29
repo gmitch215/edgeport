@@ -10,6 +10,8 @@
  */
 import { AuthError, ProtocolError } from '../core/errors';
 import { SshReader, SshWriter } from '../wire';
+import { parseOpenSshKey } from './openssh-key';
+import { decryptPkcs8 } from './pkcs8';
 
 function stripLeadingZeros(b: Uint8Array): Uint8Array {
 	let i = 0;
@@ -248,16 +250,30 @@ async function importPkcs8(der: Uint8Array): Promise<CryptoKey> {
 /**
  * Loads a user private key for publickey authentication.
  *
- * @param input - A PKCS8 PEM (`{ pem }`) or an extractable private {@link CryptoKey}.
+ * Accepts an extractable private {@link CryptoKey} or a PEM in any of these forms:
+ * unencrypted PKCS#8 (`BEGIN PRIVATE KEY`), encrypted PKCS#8 (`BEGIN ENCRYPTED PRIVATE
+ * KEY`, PBES2), or the OpenSSH format (`BEGIN OPENSSH PRIVATE KEY`), encrypted or not.
+ * Encrypted keys require `passphrase`.
+ *
+ * @param input - A `{ pem, passphrase? }` object or an extractable private {@link CryptoKey}.
  * @returns A {@link UserKey} that can sign auth requests.
- * @throws {AuthError} If the key cannot be parsed.
+ * @throws {AuthError} If the key cannot be parsed or the passphrase is wrong/missing.
  * @since 1.0.0
  */
 export async function loadUserKey(
 	input: { pem: string; passphrase?: string } | CryptoKey
 ): Promise<UserKey> {
 	if (input instanceof CryptoKey) return fromPrivateCryptoKey(input);
-	if (input.passphrase) throw new AuthError('encrypted private keys are not supported');
-	const priv = await importPkcs8(pemToDer(input.pem));
+	const { pem, passphrase } = input;
+	const der = pemToDer(pem);
+	let priv: CryptoKey;
+	if (/BEGIN OPENSSH PRIVATE KEY/.test(pem)) {
+		priv = await parseOpenSshKey(der, passphrase);
+	} else if (/BEGIN ENCRYPTED PRIVATE KEY/.test(pem)) {
+		if (!passphrase) throw new AuthError('this key is encrypted; a passphrase is required');
+		priv = await importPkcs8(await decryptPkcs8(der, passphrase));
+	} else {
+		priv = await importPkcs8(der); // unencrypted PKCS#8
+	}
 	return fromPrivateCryptoKey(priv);
 }
