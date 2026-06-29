@@ -48,7 +48,9 @@ services:
 
   nats:
     image: nats@sha256:bbfbb6c4cdaeb8a2e3ca57d3de30463a66a6c5181f324f3b680bcf858833d377
-    command: ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0']
+    # -js enables JetStream so recovery.spec can verify durable message continuity
+    command:
+      ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0', '-js', '-sd', '/tmp/js']
     ports:
       - '127.0.0.1:4222:4222'
 
@@ -71,6 +73,19 @@ services:
       - '127.0.0.1:389:389'
       - '127.0.0.1:636:636'
 
+  ldap-seed:
+    image: alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+    depends_on:
+      - openldap
+    volumes:
+      # mount the DIRECTORY (a single-file bind mount clobbers the host file into a dir)
+      - ./ldap-bootstrap:/bootstrap:ro
+    command:
+      - sh
+      - -c
+      - 'apk add --no-cache openldap-clients >/dev/null && until ldapwhoami -x -H ldap://openldap:389 -D cn=admin,dc=example,dc=org -w admin >/dev/null 2>&1; do sleep 1; done && ldapadd -c -x -H ldap://openldap:389 -D cn=admin,dc=example,dc=org -w admin -f /bootstrap/seed.ldif && echo ldap-seed-complete'
+    restart: 'no'
+
   mqtt:
     image: eclipse-mosquitto@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
     volumes:
@@ -88,11 +103,12 @@ services:
     command:
       - sh
       - -c
-      - 'apk add --no-cache socat >/dev/null && exec socat -u TCP-LISTEN:5514,fork,reuseaddr OPEN:/dev/null'
+      - 'apk add --no-cache socat >/dev/null && : > /tmp/syslog.log && (socat -u TCP-LISTEN:5514,fork,reuseaddr OPEN:/tmp/syslog.log,append &) && exec socat TCP-LISTEN:5515,fork,reuseaddr SYSTEM:"cat /tmp/syslog.log"'
     healthcheck:
-      test: ['CMD', 'nc', '-z', '127.0.0.1', '5514']
+      test: ['CMD', 'nc', '-z', '127.0.0.1', '5515']
       interval: 2s
       timeout: 2s
       retries: 30
     ports:
-      - '127.0.0.1:5514:5514'
+      - '127.0.0.1:5514:5514' # ingest
+      - '127.0.0.1:5515:5515' # readback
