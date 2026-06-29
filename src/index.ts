@@ -17,9 +17,16 @@
  * @since 1.0.0
  */
 export * from './errors';
+export * as ftp from './ftp';
 export * as imap from './imap';
+export * as ldap from './ldap';
+export * as ldaps from './ldaps';
+export * as mqtt from './mqtt';
+export * as nats from './nats';
 export * as pop3 from './pop3';
 export * as sftp from './sftp';
 export * as smtp from './smtp';
 export * as ssh from './ssh';
+export * as stomp from './stomp';
+export * as syslog from './syslog';
 export * as ws from './ws';
