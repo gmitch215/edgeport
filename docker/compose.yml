@@ -45,3 +45,54 @@ services:
       PORT: '8081'
     ports:
       - '127.0.0.1:8081:8081'
+
+  nats:
+    image: nats@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927
+    command: ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0']
+    ports:
+      - '127.0.0.1:4222:4222'
+
+  ftp:
+    image: garethflowers/ftp-server@sha256:f8017bd2d99ee5d71e89a7111d61709f86a793c4597c3b84b4472a6c69d89237
+    environment:
+      FTP_USER: 'tester'
+      FTP_PASS: 'testpass'
+    ports:
+      - '127.0.0.1:21:21'
+      - '127.0.0.1:40000-40009:40000-40009'
+
+  openldap:
+    image: osixia/openldap@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
+    environment:
+      LDAP_ORGANISATION: 'edgeport'
+      LDAP_DOMAIN: 'example.org'
+      LDAP_ADMIN_PASSWORD: 'admin'
+    ports:
+      - '127.0.0.1:389:389'
+      - '127.0.0.1:636:636'
+
+  mqtt:
+    image: eclipse-mosquitto@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - '127.0.0.1:1883:1883'
+
+  stomp:
+    image: rmohr/activemq@sha256:b5669f141ac5c455b1010b90d348fe78289bba7e2db5659484d99736b696593c
+    ports:
+      - '127.0.0.1:61613:61613'
+
+  syslog:
+    image: alpine@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+    command:
+      - sh
+      - -c
+      - 'apk add --no-cache socat >/dev/null && exec socat -u TCP-LISTEN:5514,fork,reuseaddr OPEN:/dev/null'
+    healthcheck:
+      test: ['CMD', 'nc', '-z', '127.0.0.1', '5514']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    ports:
+      - '127.0.0.1:5514:5514'
