@@ -1,0 +1,14 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"emitDeclarationOnly": true,
+		"declaration": true,
+		"declarationMap": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"verbatimModuleSyntax": false
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["dist", "node_modules", "coverage", "typedoc", "test", "**/*.test.ts", "**/*.spec.ts"]
+}

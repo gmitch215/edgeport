@@ -1,0 +1,28 @@
+{
+	"$schema": "https://typedoc.org/schema.json",
+	"entryPoints": [
+		"src/index.ts",
+		"src/ssh/index.ts",
+		"src/sftp/index.ts",
+		"src/smtp/index.ts",
+		"src/imap/index.ts",
+		"src/pop3/index.ts",
+		"src/ws/index.ts",
+		"src/wire.ts",
+		"src/crypto/index.ts",
+		"src/kex/index.ts",
+		"src/auth/index.ts"
+	],
+	"out": "typedoc",
+	"name": "edgeport",
+	"readme": "README.md",
+	"includeVersion": true,
+	"excludeInternal": true,
+	"excludePrivate": true,
+	"validation": {
+		"notExported": true,
+		"invalidLink": true,
+		"notDocumented": true
+	},
+	"treatWarningsAsErrors": false
+}

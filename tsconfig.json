@@ -3,10 +3,17 @@
 		"target": "ESNext",
 		"module": "ESNext",
 		"moduleResolution": "Bundler",
+		"moduleDetection": "force",
 		"strict": true,
 		"skipLibCheck": true,
-		"lib": ["ESNext", "DOM"],
-		"jsx": "react-jsx",
-		"jsxImportSource": "hono/jsx"
-	}
+		"verbatimModuleSyntax": true,
+		"noEmit": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"types": ["@cloudflare/workers-types", "@types/bun"]
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts", "build.ts", "vitest.config.mts"],
+	"exclude": ["dist", "node_modules", "coverage", "typedoc"]
 }
