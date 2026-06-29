@@ -8,3 +8,4 @@ dist/
 coverage/
 .coverage/
 test-report.junit.xml
+typedoc/
