@@ -303,7 +303,6 @@ function frameData(body: Uint8Array): Uint8Array {
 function makeSession(
 	socket: CoreSocket,
 	getIo: () => { reader: FramedReader; writer: FramedWriter },
-	clientName: string,
 	timeoutMs?: number
 ): SmtpSession {
 	let closed = false;
@@ -418,7 +417,7 @@ export async function _sessionFromSocket(
 		await authenticate(active.writer, active.reader, opts.auth, timeoutMs);
 	}
 
-	return makeSession(active, getIo, clientName, timeoutMs);
+	return makeSession(active, getIo, timeoutMs);
 }
 
 /**
