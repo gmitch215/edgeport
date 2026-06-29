@@ -29,7 +29,7 @@ jobs:
       - name: Unit + KAT tests with Coverage
         run: bunx vitest run --coverage --reporter=default --reporter=junit --outputFile=test-report.junit.xml
       - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: coverage
@@ -37,7 +37,7 @@ jobs:
           files: coverage/clover.xml
       - name: Upload Test Results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: test_results
