@@ -22,8 +22,10 @@ import {
 	type FramedReader,
 	type FramedWriter
 } from '../core';
+import { jetstream, type JetStreamManager } from './jetstream';
 import { parseCreds, signNonce } from './nkey';
 
+export * from './jetstream';
 export * from './nkey';
 
 const DEFAULT_NATS_PORT = 4222;
@@ -158,6 +160,15 @@ export interface NatsConnection extends AsyncDisposable {
 		data?: Uint8Array | string,
 		opts?: { timeoutMs?: number }
 	): Promise<NatsMessage>;
+	/**
+	 * Returns a {@link JetStreamManager} bound to this connection for durable streaming.
+	 *
+	 * JetStream layers a JSON request-reply protocol over the same socket, so the manager simply
+	 * reuses this connection's publish/request. The server must have JetStream enabled (`-js`).
+	 *
+	 * @returns A JetStream context for ensuring streams, publishing with PubAcks, and durable pulls.
+	 */
+	jetstream(): JetStreamManager;
 	/**
 	 * Closes the connection and ends every subscription.
 	 *
@@ -420,6 +431,11 @@ class NatsConnectionImpl implements NatsConnection {
 		} finally {
 			await sub.unsubscribe().catch(() => {});
 		}
+	}
+
+	jetstream(): JetStreamManager {
+		this.#assertOpen();
+		return jetstream(this);
 	}
 
 	async close(): Promise<void> {
