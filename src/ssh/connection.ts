@@ -324,28 +324,50 @@ export class SshConnection {
 		}
 	}
 
-	/** Opens a `session` channel. */
-	async openSession(): Promise<SshChannel> {
+	// opens a channel of the given type, appending any type-specific fields, and resolves
+	// once the server confirms it (channel-type-agnostic; shared by session + forwarding)
+	async #openChannel(type: string, extra?: (w: SshWriter) => void): Promise<SshChannel> {
 		const localId = this.#nextId++;
 		const opened = new Promise<{ remoteId: number; window: number; maxPacket: number } | null>(
 			(r) => this.#openWaiters.set(localId, r)
 		);
-		await this.transport.send(
-			new SshWriter()
-				.byte(Msg.CHANNEL_OPEN)
-				.string('session')
-				.uint32(localId)
-				.uint32(INITIAL_WINDOW)
-				.uint32(MAX_PACKET)
-				.bytes()
-		);
+		const w = new SshWriter()
+			.byte(Msg.CHANNEL_OPEN)
+			.string(type)
+			.uint32(localId)
+			.uint32(INITIAL_WINDOW)
+			.uint32(MAX_PACKET);
+		extra?.(w);
+		await this.transport.send(w.bytes());
 		const result = await opened;
-		if (!result) throw new ConnectionError('channel open was refused', { protocol: 'ssh' });
+		if (!result)
+			throw new ConnectionError(`channel open (${type}) was refused`, { protocol: 'ssh' });
 		const ch = new SshChannel(localId, result.remoteId, this);
 		ch.sendWindow = result.window;
 		ch.maxPacket = result.maxPacket;
 		this.#channels.set(localId, ch);
 		return ch;
+	}
+
+	/** Opens a `session` channel. */
+	openSession(): Promise<SshChannel> {
+		return this.#openChannel('session');
+	}
+
+	/**
+	 * Opens a `direct-tcpip` channel: asks the server to connect to `host:port` on our
+	 * behalf and pipe the bytes back (RFC 4254 section 7.2). This is the `-L`-style
+	 * reach-through used to tunnel to services behind an SSH bastion.
+	 */
+	openDirectTcpip(
+		host: string,
+		port: number,
+		originIp = '127.0.0.1',
+		originPort = 0
+	): Promise<SshChannel> {
+		return this.#openChannel('direct-tcpip', (w) =>
+			w.string(host).uint32(port).string(originIp).uint32(originPort)
+		);
 	}
 
 	/** Closes the underlying transport. */

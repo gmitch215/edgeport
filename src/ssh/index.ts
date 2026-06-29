@@ -90,6 +90,25 @@ export interface SshSession extends AsyncDisposable {
 	shell(): Promise<SshChannelHandle>;
 	/** Opens a subsystem channel (e.g. `sftp`). */
 	subsystem(name: string): Promise<SshChannelHandle>;
+	/**
+	 * Opens a `direct-tcpip` tunnel: the server connects to `host:port` on your behalf and
+	 * pipes the bytes back over a duplex channel (the `-L`-style reach-through). Use it to
+	 * reach a service - a database, an internal API - that sits behind an SSH bastion.
+	 *
+	 * @param host - The target host the server should connect to.
+	 * @param port - The target port.
+	 * @returns A duplex channel: `stdout` is inbound bytes, `write()` sends outbound.
+	 * @throws {ConnectionError} If the server refuses the forward (e.g. policy/host unreachable).
+	 * @since 1.0.0
+	 * @example
+	 * ```typescript
+	 * await using ssh = await connect({ hostname: 'bastion', username: 'u', password: p });
+	 * await using pg = await ssh.forwardOut('10.0.0.5', 5432); // reach internal Postgres
+	 * await pg.write(startupPacket);
+	 * for await (const chunk of pg.stdout) handle(chunk);
+	 * ```
+	 */
+	forwardOut(host: string, port: number): Promise<SshChannelHandle>;
 	/** Forces a key re-exchange now; resolves when new keys are installed. */
 	rekey(): Promise<void>;
 	/** Closes the session and underlying transport. */
@@ -133,6 +152,10 @@ class Session implements SshSession {
 		const ch = await this.conn.openSession();
 		await ch.subsystem(name);
 		return ch;
+	}
+
+	forwardOut(host: string, port: number): Promise<SshChannelHandle> {
+		return this.conn.openDirectTcpip(host, port);
 	}
 
 	close(): Promise<void> {
