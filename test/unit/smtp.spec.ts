@@ -1,6 +1,3 @@
-// mock-driven unit tests for the SMTP submission client
-// each test plays the server: the client call and the server script run together under
-// Promise.all so reads/writes on the in-memory channel interleave correctly
 import { describe, expect, it } from 'vitest';
 import { AuthError } from '../../src/core';
 import { _sessionFromSocket, type SmtpConnectOptions } from '../../src/smtp/index';
@@ -384,5 +381,31 @@ describe('MIME builder', () => {
 		);
 		expect(out).toContain('To: x@h, y@h');
 		expect(out).not.toContain('Cc:');
+	});
+
+	it('builds an html-only message', () => {
+		const out = decoder.decode(
+			buildMime({ from: 'a@h', to: 'b@h', subject: 'H', html: '<p>x</p>' })
+		);
+		expect(out.toLowerCase()).toContain('text/html');
+		expect(out).toContain('<p>x</p>');
+	});
+
+	it('builds multipart/mixed with a base64 attachment', () => {
+		const content = new Uint8Array([0, 1, 2, 250, 251, 252]);
+		const out = decoder.decode(
+			buildMime({
+				from: 'a@h',
+				to: 'b@h',
+				subject: 'report',
+				text: 'see attached',
+				attachments: [{ filename: 'r.bin', content, contentType: 'application/octet-stream' }]
+			})
+		);
+		expect(out.toLowerCase()).toContain('multipart/mixed');
+		expect(out).toContain('Content-Transfer-Encoding: base64');
+		expect(out).toContain('filename="r.bin"');
+		expect(out).toContain('see attached'); // body survives as the first part
+		expect(out).toContain(btoa(String.fromCharCode(...content))); // attachment bytes round-trip
 	});
 });
