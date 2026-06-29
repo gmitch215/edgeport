@@ -47,7 +47,7 @@ services:
       - '127.0.0.1:8081:8081'
 
   nats:
-    image: nats@sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927
+    image: nats@sha256:bbfbb6c4cdaeb8a2e3ca57d3de30463a66a6c5181f324f3b680bcf858833d377
     command: ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0']
     ports:
       - '127.0.0.1:4222:4222'
