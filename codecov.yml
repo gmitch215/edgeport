@@ -27,6 +27,68 @@ flag_management:
       paths:
         - src/
 
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        informational: true
+  individual_components:
+    - component_id: core
+      name: edgeport/core
+      paths: ['src/core/**']
+    - component_id: ssh
+      name: edgeport/ssh
+      paths: ['src/ssh/**']
+    - component_id: sftp
+      name: edgeport/sftp
+      paths: ['src/sftp/**']
+    - component_id: smtp
+      name: edgeport/smtp
+      paths: ['src/smtp/**']
+    - component_id: imap
+      name: edgeport/imap
+      paths: ['src/imap/**']
+    - component_id: pop3
+      name: edgeport/pop3
+      paths: ['src/pop3/**']
+    - component_id: ws
+      name: edgeport/ws
+      paths: ['src/ws/**']
+    - component_id: nats
+      name: edgeport/nats
+      paths: ['src/nats/**']
+    - component_id: mqtt
+      name: edgeport/mqtt
+      paths: ['src/mqtt/**']
+    - component_id: stomp
+      name: edgeport/stomp
+      paths: ['src/stomp/**']
+    - component_id: ftp
+      name: edgeport/ftp
+      paths: ['src/ftp/**']
+    - component_id: ldap
+      name: edgeport/ldap
+      paths: ['src/ldap/**']
+    - component_id: ldaps
+      name: edgeport/ldaps
+      paths: ['src/ldaps/**']
+    - component_id: syslog
+      name: edgeport/syslog
+      paths: ['src/syslog/**']
+    - component_id: wire
+      name: edgeport/wire
+      paths: ['src/wire.ts']
+    - component_id: crypto
+      name: edgeport/crypto
+      paths: ['src/crypto/**']
+    - component_id: kex
+      name: edgeport/kex
+      paths: ['src/kex/**']
+    - component_id: auth
+      name: edgeport/auth
+      paths: ['src/auth/**']
+
 ignore:
   - 'test/**/*'
   - 'coverage/**/*'
