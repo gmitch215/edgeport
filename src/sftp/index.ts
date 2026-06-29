@@ -74,6 +74,12 @@ export interface SftpEntry {
 	attrs: SftpAttrs;
 }
 
+/** Options for writing/streaming a file. */
+export interface SftpWriteOptions {
+	/** Byte offset to start writing at; when set (> 0) the file is not truncated. */
+	offset?: number;
+}
+
 /** A stateful SFTP session. */
 export interface SftpSession extends AsyncDisposable {
 	/** Lists a directory. */
@@ -82,12 +88,16 @@ export interface SftpSession extends AsyncDisposable {
 	stat(path: string): Promise<SftpAttrs>;
 	/** Reads an entire file into memory. */
 	readFile(path: string): Promise<Uint8Array>;
-	/** Writes (creating/truncating) an entire file. */
-	writeFile(path: string, data: Uint8Array): Promise<void>;
+	/**
+	 * Writes a file. With no `offset` the file is created/truncated; with `offset` the data
+	 * is written at that byte position without truncating - the basis for resuming an
+	 * interrupted upload (stat the partial file, then write the remainder at its size).
+	 */
+	writeFile(path: string, data: Uint8Array, opts?: SftpWriteOptions): Promise<void>;
 	/** Streams a file's contents. */
 	createReadStream(path: string): ReadableStream<Uint8Array>;
-	/** Streams writes into a file (created/truncated). */
-	createWriteStream(path: string): WritableStream<Uint8Array>;
+	/** Streams writes into a file (created/truncated, or appended at `offset` to resume). */
+	createWriteStream(path: string, opts?: SftpWriteOptions): WritableStream<Uint8Array>;
 	/** Creates a directory. */
 	mkdir(path: string): Promise<void>;
 	/** Removes a file. */
@@ -283,18 +293,27 @@ class Sftp implements SftpSession {
 		return concatBytes(...chunks);
 	}
 
-	async writeFile(path: string, data: Uint8Array): Promise<void> {
-		const handle = await this.#open(path, PFlags.WRITE | PFlags.CREAT | PFlags.TRUNC);
+	async writeFile(path: string, data: Uint8Array, opts?: SftpWriteOptions): Promise<void> {
+		const start = opts?.offset ?? 0;
+		// offset > 0 resumes an existing file, so do not truncate
+		const flags =
+			start > 0 ? PFlags.WRITE | PFlags.CREAT : PFlags.WRITE | PFlags.CREAT | PFlags.TRUNC;
+		const handle = await this.#open(path, flags);
 		try {
-			let offset = 0;
-			while (offset < data.length) {
-				const chunk = data.subarray(offset, offset + READ_CHUNK);
+			let o = 0;
+			while (o < data.length) {
+				const chunk = data.subarray(o, o + READ_CHUNK);
 				this.#expectStatus(
 					await this.#request((w, id) =>
-						w.byte(Pkt.WRITE).uint32(id).string(handle).uint64(BigInt(offset)).string(chunk)
+						w
+							.byte(Pkt.WRITE)
+							.uint32(id)
+							.string(handle)
+							.uint64(BigInt(start + o))
+							.string(chunk)
 					)
 				);
-				offset += chunk.length;
+				o += chunk.length;
 			}
 		} finally {
 			await this.#closeHandle(handle);
@@ -330,15 +349,17 @@ class Sftp implements SftpSession {
 		});
 	}
 
-	createWriteStream(path: string): WritableStream<Uint8Array> {
+	createWriteStream(path: string, opts?: SftpWriteOptions): WritableStream<Uint8Array> {
 		let handle: Uint8Array | null = null;
 		let opening: Promise<Uint8Array> | null = null;
-		let offset = 0;
+		let offset = opts?.offset ?? 0;
+		// offset > 0 resumes an existing file, so do not truncate
+		const flags =
+			offset > 0 ? PFlags.WRITE | PFlags.CREAT : PFlags.WRITE | PFlags.CREAT | PFlags.TRUNC;
 		const self = this;
 		return new WritableStream<Uint8Array>({
 			async write(chunk) {
-				if (!handle)
-					handle = await (opening ??= self.#open(path, PFlags.WRITE | PFlags.CREAT | PFlags.TRUNC));
+				if (!handle) handle = await (opening ??= self.#open(path, flags));
 				let o = 0;
 				while (o < chunk.length) {
 					const part = chunk.subarray(o, o + READ_CHUNK);
