@@ -34,6 +34,11 @@ jobs:
           fi
       - name: Boot Integration Servers
         run: docker compose -f docker/compose.yml up -d --wait
+      - name: Tune TCP for High Localhost Connection Churn
+        run: |
+          sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"
+          sudo sysctl -w net.ipv4.tcp_tw_reuse=1
+          sudo sysctl -w net.ipv4.tcp_fin_timeout=15
       - name: Run Integration Tests
         uses: nick-fields/retry@v3
         env:
