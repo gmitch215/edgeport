@@ -64,7 +64,7 @@ services:
       - '127.0.0.1:40000-40009:40000-40009'
 
   openldap:
-    image: osixia/openldap@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
+    image: osixia/openldap@sha256:3f68751292b43564a2586fc29fb7337573e2dad692b92d4e78e49ad5c22e567b
     environment:
       LDAP_ORGANISATION: 'edgeport'
       LDAP_DOMAIN: 'example.org'
