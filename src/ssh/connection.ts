@@ -224,10 +224,8 @@ export class SshConnection {
 		number,
 		(ch: { remoteId: number; window: number; maxPacket: number } | null) => void
 	>();
-	#pump: Promise<void>;
-
 	constructor(private readonly transport: SshTransport) {
-		this.#pump = this.#runPump();
+		void this.#runPump(); // background reader; errors fail open channels internally
 	}
 
 	/** @internal sends a connection-layer packet (held during an in-flight rekey). */
