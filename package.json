@@ -37,6 +37,34 @@
 			"types": "./dist/ws/index.d.ts",
 			"import": "./dist/ws/index.js"
 		},
+		"./nats": {
+			"types": "./dist/nats/index.d.ts",
+			"import": "./dist/nats/index.js"
+		},
+		"./mqtt": {
+			"types": "./dist/mqtt/index.d.ts",
+			"import": "./dist/mqtt/index.js"
+		},
+		"./stomp": {
+			"types": "./dist/stomp/index.d.ts",
+			"import": "./dist/stomp/index.js"
+		},
+		"./ftp": {
+			"types": "./dist/ftp/index.d.ts",
+			"import": "./dist/ftp/index.js"
+		},
+		"./ldap": {
+			"types": "./dist/ldap/index.d.ts",
+			"import": "./dist/ldap/index.js"
+		},
+		"./ldaps": {
+			"types": "./dist/ldaps/index.d.ts",
+			"import": "./dist/ldaps/index.js"
+		},
+		"./syslog": {
+			"types": "./dist/syslog/index.d.ts",
+			"import": "./dist/syslog/index.js"
+		},
 		"./wire": {
 			"types": "./dist/wire.d.ts",
 			"import": "./dist/wire.js"

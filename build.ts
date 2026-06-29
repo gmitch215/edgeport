@@ -11,6 +11,13 @@ const entries = {
 	imap: 'src/imap/index.ts',
 	pop3: 'src/pop3/index.ts',
 	ws: 'src/ws/index.ts',
+	nats: 'src/nats/index.ts',
+	mqtt: 'src/mqtt/index.ts',
+	stomp: 'src/stomp/index.ts',
+	ftp: 'src/ftp/index.ts',
+	ldap: 'src/ldap/index.ts',
+	ldaps: 'src/ldaps/index.ts',
+	syslog: 'src/syslog/index.ts',
 	// building-block subpaths (edgeport/wire, /crypto, /kex, /auth)
 	wire: 'src/wire.ts',
 	crypto: 'src/crypto/index.ts',
@@ -28,7 +35,7 @@ const result = await Bun.build({
 	format: 'esm',
 	sourcemap: 'linked',
 	splitting: true,
-	external: ['cloudflare:sockets', '@noble/ciphers'],
+	external: ['cloudflare:sockets', '@noble/ciphers', 'bcrypt-pbkdf'],
 	naming: '[dir]/[name].[ext]'
 });
 
