@@ -70,7 +70,8 @@
 		"prepare": "husky install"
 	},
 	"dependencies": {
-		"@noble/ciphers": "^2.2.0"
+		"@noble/ciphers": "^2.2.0",
+		"bcrypt-pbkdf": "^1.0.2"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.16.20",
