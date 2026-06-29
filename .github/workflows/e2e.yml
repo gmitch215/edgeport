@@ -39,14 +39,14 @@ jobs:
           INTEGRATION: '1'
       - name: Upload Coverage to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: integration
           files: coverage/clover.xml
       - name: Upload Test Results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: test_results
