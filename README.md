@@ -19,6 +19,12 @@ edgeport is written for the Workers runtime from the ground up.
 - [IMAP](#imap)
 - [POP3](#pop3)
 - [WebSocket](#websocket)
+- [NATS](#nats)
+- [MQTT](#mqtt)
+- [STOMP](#stomp)
+- [FTP](#ftp)
+- [LDAP / LDAPS](#ldap--ldaps)
+- [Syslog](#syslog)
 - [Real-World Recipes](#real-world-recipes)
 - [Error Handling](#error-handling)
 - [Limitations](#limitations)
@@ -45,6 +51,12 @@ the runtime does not provide. edgeport is:
 - **SMTP** send with STARTTLS / implicit TLS and AUTH PLAIN/LOGIN.
 - **IMAP** and **POP3** read access with STARTTLS / implicit TLS.
 - **WebSocket** client via the platform API (`for await` message iteration).
+- **NATS** pub/sub, request-reply, and queue groups; token / user-pass / nkey / JWT (creds) auth.
+- **MQTT** v3.1.1 (QoS 0/1/2, keep-alive, wildcards) over raw TCP or WebSocket.
+- **STOMP** 1.2 messaging (send / subscribe / ack) for ActiveMQ, RabbitMQ, and friends.
+- **FTP** (plaintext, passive mode): upload, download, list, and directory ops.
+- **LDAP / LDAPS** simple bind + search with RFC 4515 filters (BER codec, StartTLS).
+- **Syslog** RFC 5424 over TCP/TLS with octet-counting or LF framing.
 - One uniform error vocabulary: `AuthError`, `ConnectionError`, `ProtocolError`, `TimeoutError`.
 
 ### SSH algorithm support
@@ -145,6 +157,35 @@ await using ssh = await connect({
 	password: env.PW,
 	algorithms: { cipher: ['chacha20-poly1305@openssh.com'] }
 });
+```
+
+### Encrypted (Passphrase-Protected) Keys
+
+Encrypted PKCS#8 (`BEGIN ENCRYPTED PRIVATE KEY`) and OpenSSH-format keys (`BEGIN OPENSSH
+PRIVATE KEY`, the `ssh-keygen` default), encrypted or not, are accepted - pass the
+`passphrase`:
+
+```typescript
+await using ssh = await connect({
+	hostname: 'host',
+	username: 'user',
+	privateKey: { pem: env.SSH_KEY, passphrase: env.SSH_KEY_PASSPHRASE }
+});
+```
+
+### Key Re-Exchange (Rekey)
+
+Long-lived sessions and large transfers rekey automatically (default every ~1 GiB, per
+RFC 4253 §9); server-initiated rekeys are handled transparently. Tune or force it:
+
+```typescript
+await using ssh = await connect({
+	hostname: 'host',
+	username: 'user',
+	password: env.PW,
+	rekeyThresholdBytes: 256 * 1024 * 1024 // auto-rekey every 256 MiB (0 disables)
+});
+await ssh.rekey(); // or force one now
 ```
 
 ## SFTP
@@ -287,9 +328,134 @@ for await (const msg of ws) {
 const { code, reason } = await ws.closed;
 ```
 
+## NATS
+
+```typescript
+import { connect } from 'edgeport/nats';
+
+await using nc = await connect({ hostname: 'nats.example.com', token: env.NATS_TOKEN });
+
+// pub/sub
+const sub = nc.subscribe('orders.*', { queue: 'workers' });
+await nc.publish('orders.created', JSON.stringify({ id: 42 }));
+for await (const msg of sub) handle(JSON.parse(new TextDecoder().decode(msg.data)));
+
+// request-reply
+const reply = await nc.request('time.now', '', { timeoutMs: 1000 });
+```
+
+nkey (ed25519) auth: pass `nkeySeed` (a `SU...` seed) instead of a token. For managed NATS
+(Synadia NGS) or any JWT-secured deployment, pass the contents of a `.creds` file - the user
+JWT and signing seed are extracted automatically:
+
+```typescript
+await using nc = await connect({ hostname: 'connect.ngs.global', creds: env.NATS_CREDS });
+```
+
+## MQTT
+
+Raw TCP (1883 / TLS 8883) or over WebSocket - same API.
+
+```typescript
+import { connect, connectWebSocket } from 'edgeport/mqtt';
+
+await using mqtt = await connect({
+	hostname: 'broker.example.com',
+	port: 8883,
+	tls: 'implicit',
+	clientId: 'edge-worker-1',
+	username: env.MQTT_USER,
+	password: env.MQTT_PASS
+});
+
+await mqtt.publish('sensors/edge/temp', '21.4', { qos: 1, retain: true });
+const sub = mqtt.subscribe('sensors/+/temp', { qos: 1 });
+for await (const m of sub) console.log(m.topic, new TextDecoder().decode(m.payload));
+
+// or tunnel MQTT through a WebSocket broker endpoint
+const overWs = await connectWebSocket('wss://broker.example.com:8884/mqtt', {
+	clientId: 'edge-ws'
+});
+```
+
+## STOMP
+
+```typescript
+import { connect } from 'edgeport/stomp';
+
+await using stomp = await connect({
+	hostname: 'mq.example.com',
+	login: env.MQ_USER,
+	passcode: env.MQ_PASS
+});
+
+await stomp.send('/queue/jobs', JSON.stringify({ task: 'resize' }));
+const sub = stomp.subscribe('/queue/jobs', { ack: 'client' });
+for await (const m of sub) {
+	process(m.body);
+	await m.ack?.();
+}
+```
+
+## FTP
+
+Plaintext FTP, passive mode (Workers cannot accept the inbound connections active mode needs).
+
+```typescript
+import { connect, getFile, putFile } from 'edgeport/ftp';
+
+await using ftp = await connect({
+	hostname: 'files.example.com',
+	username: 'u',
+	password: env.FTP_PW
+});
+await ftp.put('reports/today.csv', new TextEncoder().encode('a,b,c\n'));
+for (const entry of await ftp.list('reports')) console.log(entry.name, entry.size);
+const bytes = await ftp.get('reports/today.csv');
+```
+
+## LDAP / LDAPS
+
+```typescript
+import { connect } from 'edgeport/ldap';
+// or: import { connect } from 'edgeport/ldaps'  // implicit TLS on 636
+
+await using ldap = await connect({
+	hostname: 'ldap.example.com',
+	bindDN: 'cn=svc,dc=example,dc=org',
+	password: env.LDAP_PW
+});
+
+const users = await ldap.search({
+	base: 'ou=people,dc=example,dc=org',
+	scope: 'sub',
+	filter: '(&(objectClass=person)(mail=*@example.org))',
+	attributes: ['cn', 'mail']
+});
+for (const u of users) console.log(u.dn, u.attributes.mail);
+```
+
+## Syslog
+
+```typescript
+import { connect, Severity } from 'edgeport/syslog';
+
+await using log = await connect({
+	hostname: 'logs.example.com',
+	port: 6514,
+	tls: 'implicit',
+	appName: 'edge-worker'
+});
+await log.log({
+	severity: Severity.info,
+	message: 'request handled',
+	structuredData: [{ id: 'req@1', params: { ms: '12' } }]
+});
+```
+
 ## Real-World Recipes
 
-### A cron Worker that runs a remote command
+### A cron Worker that runs a Remote Command
 
 ```typescript
 import { exec } from 'edgeport/ssh';
@@ -307,7 +473,7 @@ export default {
 };
 ```
 
-### Email an alert on a webhook
+### Email an Alert on a Webhook
 
 ```typescript
 import { send } from 'edgeport/smtp';
@@ -328,7 +494,7 @@ export default {
 };
 ```
 
-### Poll a mailbox and archive attachments to SFTP
+### Poll a Mailbox and Archive Attachments to SFTP
 
 ```typescript
 import { connect as imapConnect } from 'edgeport/imap';
@@ -351,6 +517,83 @@ for (const m of messages) {
 			data: m.body
 		});
 }
+```
+
+### Run a Remote Command and Publish the Result to NATS
+
+```typescript
+import { exec } from 'edgeport/ssh';
+import { connect as natsConnect } from 'edgeport/nats';
+
+const { stdout } = await exec({
+	hostname: env.BOX,
+	username: 'deploy',
+	privateKey: { pem: env.SSH_KEY },
+	command: 'df -h /'
+});
+await using nc = await natsConnect({ hostname: env.NATS, token: env.NATS_TOKEN });
+await nc.publish('telemetry.disk', stdout);
+```
+
+### Bridge MQTT Sensor Readings to Syslog (edge observability)
+
+```typescript
+import { connect as mqttConnect } from 'edgeport/mqtt';
+import { connect as syslogConnect, Severity } from 'edgeport/syslog';
+
+await using mqtt = await mqttConnect({ hostname: env.BROKER, clientId: 'edge-bridge' });
+await using log = await syslogConnect({
+	hostname: env.SIEM,
+	port: 6514,
+	tls: 'implicit',
+	appName: 'sensors'
+});
+
+for await (const reading of mqtt.subscribe('sensors/#', { qos: 1 })) {
+	await log.log({
+		severity: Severity.info,
+		message: `${reading.topic}=${new TextDecoder().decode(reading.payload)}`
+	});
+}
+```
+
+### Authorize an Action via LDAP, then Alert over STOMP
+
+```typescript
+import { connect as ldapConnect } from 'edgeport/ldaps';
+import { connect as stompConnect } from 'edgeport/stomp';
+
+await using dir = await ldapConnect({
+	hostname: env.LDAP,
+	bindDN: env.SVC_DN,
+	password: env.SVC_PW
+});
+const allowed = await dir.search({ base: 'ou=people,dc=example,dc=org', filter: `(uid=${uid})` });
+
+if (allowed.length === 0) {
+	await using mq = await stompConnect({
+		hostname: env.MQ,
+		login: env.MQ_USER,
+		passcode: env.MQ_PW
+	});
+	await mq.send('/queue/security.alerts', `unauthorized action by ${uid}`);
+}
+```
+
+### Pull a File over FTP and Republish to MQTT
+
+```typescript
+import { getFile } from 'edgeport/ftp';
+import { connect as mqttConnect } from 'edgeport/mqtt';
+
+const csv = await getFile({
+	hostname: env.FTP,
+	username: env.U,
+	password: env.P,
+	path: '/exports/prices.csv'
+});
+await using mqtt = await mqttConnect({ hostname: env.BROKER, clientId: 'price-feed' });
+await mqtt.publish('feeds/prices', csv, { qos: 1, retain: true });
 ```
 
 ## Error Handling
@@ -378,10 +621,21 @@ try {
   during negotiation. Watch Worker CPU limits on very large ChaCha transfers.
 - **No agent forwarding, X11, or port forwarding.** edgeport implements the client side of
   exec/shell/subsystem and SFTP only.
-- **Encrypted private keys** (passphrase-protected PEM) are not yet supported; decrypt first.
-- **No in-session rekeying** (RFC 4253 section 9) yet. Sessions past the server's rekey
-  threshold (commonly 1 GiB or 1 hour) will fail; open a fresh connection for very large
-  or very long-lived transfers.
+- **Encrypted private keys**: encrypted PKCS#8 (PBES2) and OpenSSH-format keys are
+  supported; legacy `DEK-Info` PEM and `aes-gcm`/`chacha20-poly1305` OpenSSH key ciphers
+  are not (re-encrypt with `aes256-ctr`).
+- **Time-based rekey** is not triggered (byte-volume and server-initiated rekeys are).
+- **FTPS is not provided.** The Workers `startTls` API exposes no TLS session export/import,
+  so the FTPS data connection cannot resume the control channel's TLS session - which strict
+  servers (e.g. vsftpd `require_ssl_reuse=YES`) mandate. Shipping it would only work against
+  servers that disable that protection, so plain `edgeport/ftp` is provided and FTPS is
+  deferred until the runtime gains TLS session control.
+- **FTP is passive-mode only** (Workers cannot accept the inbound connections active mode needs).
+- **LDAP SASL** is not implemented (simple bind over TLS is). The one mechanism that would add
+  capability over simple bind, SASL EXTERNAL, needs a TLS client certificate, which the Workers
+  socket API cannot present; PLAIN is equivalent to simple bind, and SCRAM/DIGEST/GSSAPI are
+  rarely required. NATS auth is fully covered (token / user-pass / nkey / JWT); NATS does not
+  use SASL. MQTT/STOMP/Syslog authenticate via TLS + username-password.
 
 ## Advanced: Building-Block Exports
 
@@ -419,10 +673,6 @@ INTEGRATION=1 bun run test                     # integration under workerd vs re
 docker compose -f docker/compose.yml down -v
 ```
 
-Releases use npm [staged publishing](https://docs.npmjs.com/staged-publishing): CI runs
-`npm stage publish` via OIDC, then a maintainer promotes the staged version with
-`npm stage approve <id>` (2FA, run locally - it cannot run in CI).
-
 ## License
 
-MIT (c) Gregory Mitchell
+MIT (c) Gregory Mitchell 2026. See [LICENSE](./LICENSE) file for details.
