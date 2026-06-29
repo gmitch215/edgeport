@@ -1,0 +1,22 @@
+{
+  "name": "edgeport",
+  "description": "TCP Library for Cloudflare Workers",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "prettier": "bunx prettier --write .",
+    "prettier:check": "bunx prettier --check .",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20260629.1",
+    "@noble/ciphers": "^2.2.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.1",
+    "prettier-plugin-organize-imports": "^4.3.0"
+  },
+  "lint-staged": {
+    "*.{js,ts,json,yml,md}": "prettier --write"
+  }
+}
