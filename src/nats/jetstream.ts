@@ -141,9 +141,12 @@ export interface JsMessage {
 	/** The reply subject the ack is published to (the JetStream ack inbox). */
 	readonly replyTo: string;
 	/**
-	 * Acknowledges the message (`+ACK` to its reply subject), removing it from redelivery.
+	 * Acknowledges the message, removing it from redelivery. Uses a confirmed (double) ack:
+	 * it awaits the server's acknowledgement so the ack is durable before it resolves - safe to
+	 * reconnect or close immediately after.
 	 *
-	 * @returns Resolves once the ack is written.
+	 * @returns Resolves once the server has confirmed the ack.
+	 * @throws {TimeoutError} If the server does not confirm the ack in time.
 	 */
 	ack(): Promise<void>;
 }
@@ -388,7 +391,7 @@ class PullConsumerImpl implements PullConsumer {
 			async ack(): Promise<void> {
 				if (acked) return;
 				acked = true;
-				await nc.publish(replyTo, '+ACK');
+				await nc.request(replyTo, '+ACK', { timeoutMs: 5000 });
 			}
 		};
 	}
