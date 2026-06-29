@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Prettier
+        run: bun run prettier:check
+      - name: Unit + KAT tests with Coverage
+        run: bunx vitest run --coverage --reporter=default --reporter=junit --outputFile=test-report.junit.xml
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: coverage
+          flags: unit,kat
+          files: coverage/clover.xml
+      - name: Upload Test Results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: test_results
+          flags: unit,kat
+          files: test-report.junit.xml

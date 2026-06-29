@@ -12,9 +12,30 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
+      contents: read
+      id-token: write
 
-    # FIXME finish
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Upgrade NPM
+        run: npm install -g npm@latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Test
+        run: bun run test
+      - name: Build
+        run: bun run build
+      - name: Stage publish to npm
+        run: npm stage publish --provenance --access public
 
   release:
     runs-on: ubuntu-latest
