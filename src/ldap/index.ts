@@ -17,7 +17,6 @@
  */
 import {
 	AuthError,
-	ConnectionError,
 	ProtocolError,
 	connect as coreConnect,
 	type CoreSocket,
@@ -71,6 +70,12 @@ export interface LdapConnectOptions {
 	 * - `'starttls'`: plaintext, upgraded with the StartTLS extended operation before bind.
 	 */
 	tls?: 'off' | 'implicit' | 'starttls';
+	/**
+	 * Hostname the server's TLS certificate must match (server-identity verification). Applies
+	 * to the StartTLS upgrade; defaults to {@link LdapConnectOptions.hostname}. For implicit
+	 * LDAPS the runtime validates the certificate against the connection hostname directly.
+	 */
+	expectedServerHostname?: string;
 	/** Bind DN; when provided, {@link connect} binds before returning. */
 	bindDN?: string;
 	/** Bind password; paired with {@link LdapConnectOptions.bindDN}. */
@@ -229,7 +234,7 @@ async function runStartTls(socket: CoreSocket, opts: LdapConnectOptions): Promis
 			protocol: PROTO
 		});
 	}
-	return socket.startTls({ expectedServerHostname: opts.hostname });
+	return socket.startTls({ expectedServerHostname: opts.expectedServerHostname ?? opts.hostname });
 }
 
 /**
