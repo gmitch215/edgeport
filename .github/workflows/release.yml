@@ -6,6 +6,14 @@ on:
       changelog:
         type: string
         description: 'Changelog to replace the auto-generated one'
+      suffix:
+        type: string
+        description: 'Suffix to append to the version'
+        default: ''
+      skip_publish:
+        type: boolean
+        description: 'Skip publishing to NPM'
+        default: false
 
 jobs:
   publish:
@@ -16,7 +24,7 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
       - name: Set up Node
@@ -35,6 +43,7 @@ jobs:
       - name: Build
         run: bun run build
       - name: Publish to NPM
+        if: ${{ !github.event.inputs.skip_publish }}
         run: npm publish --provenance --access public
 
   release:
@@ -45,7 +54,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Extract Version from package.json
@@ -64,12 +73,12 @@ jobs:
           configuration: '.github/release.json'
           mode: 'HYBRID'
           fromTag: '${{ env.LATEST_TAG }}'
-          toTag: 'master'
+          toTag: '${{ github.ref_name }}'
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.VERSION }}
-          name: edgeport v${{ env.VERSION }}
+          tag_name: v${{ env.VERSION }}${{ github.event.inputs.suffix }}
+          name: edgeport v${{ env.VERSION }}${{ github.event.inputs.suffix }}
           body: ${{ steps.changelog.outputs.changelog || github.event.inputs.changelog }}
           draft: false
           prerelease: false
