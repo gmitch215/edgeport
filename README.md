@@ -42,7 +42,8 @@ the runtime does not provide. edgeport is:
 - **TypeScript-first.** The types are the contract and the documentation.
 - **Tree-Shakeable.** Import only the protocol you use (`edgeport/ssh`, `edgeport/smtp`, ...).
 - **Tested against Real Servers.** Every protocol is verified under `workerd` against
-  Dockerized OpenSSH, Dropbear, GreenMail, and a WebSocket echo server - not mocks.
+  Dockerized servers (OpenSSH, Dropbear, GreenMail, NATS, Mosquitto, ActiveMQ, OpenLDAP,
+  vsftpd, and a WebSocket echo server) - not mocks.
 
 ## Features
 
@@ -209,6 +210,8 @@ for (const entry of await sftp.list('/tmp/reports')) {
 const stream = sftp.createReadStream('/var/log/big.log');
 ```
 
+### Reusing an Existing Session
+
 Reuse an existing SSH session instead of opening a second connection:
 
 ```typescript
@@ -217,6 +220,16 @@ import { connect as sftpConnect } from 'edgeport/sftp';
 
 await using ssh = await sshConnect({ hostname: 'h', username: 'u', password: p });
 await using sftp = await sftpConnect({ session: ssh });
+```
+
+### Large File Transfers
+
+For large files, use the streaming API to avoid buffering the entire file in memory:
+
+```typescript
+await using sftp = await connect({ hostname: 'h', username: 'u', password: p });
+const readStream = sftp.createReadStream('/var/log/big.log');
+const writeStream = sftp.createWriteStream('/tmp/bigfile');
 ```
 
 ## SMTP
@@ -238,7 +251,7 @@ await send({
 });
 ```
 
-HTML mail and a Reusable Session:
+### One-shot Connect + Send with HTML
 
 ```typescript
 import { connect } from 'edgeport/smtp';
@@ -251,6 +264,8 @@ await using smtp = await connect({
 });
 await smtp.send({ from: 'u@x', to: 'a@y', subject: 'Hi', html: '<h1>Hi</h1>', text: 'Hi' });
 ```
+
+### Cloudflare Email Service
 
 Using the [Cloudflare Email Service](https://developers.cloudflare.com/email-service/api/send-emails/smtp/), your workers can now send emails on-demand without the additional cost of a SMTP provider. For example:
 
@@ -293,6 +308,20 @@ const uids = await imap.search({ unseen: true });
 const messages = await imap.fetch(uids, { envelope: true, body: true });
 ```
 
+### One-shot Fetch Recent
+
+Fetch the most recent N messages in one call (not streaming):
+
+```typescript
+import { fetchRecent } from 'edgeport/imap';
+const recent = await fetchRecent({
+	hostname: 'imap.example.com',
+	auth: { username: 'u', password: env.PW },
+	mailbox: 'INBOX',
+	count: 10
+});
+```
+
 ## POP3
 
 ```typescript
@@ -311,6 +340,18 @@ const { count } = await pop.stat();
 const first = await pop.retrieve(1);
 ```
 
+### One-shot Retrieve All
+
+Retrieve all messages in one call (not streaming):
+
+```typescript
+import { retrieveAll } from 'edgeport/pop3';
+const all = await retrieveAll({
+	hostname: 'pop.example.com',
+	auth: { username: 'u', password: env.PW }
+});
+```
+
 ## WebSocket
 
 The WebSocket client uses the platform WebSocket API; the runtime handles TLS, framing,
@@ -322,6 +363,7 @@ import { connect } from 'edgeport/ws';
 const ws = await connect('wss://stream.example.com/feed', { protocols: ['v1'] });
 ws.send(JSON.stringify({ subscribe: 'ticks' }));
 
+// directly iterate messages with `for await`
 for await (const msg of ws) {
 	if (msg.type === 'text') handle(JSON.parse(msg.data));
 }
@@ -344,12 +386,33 @@ for await (const msg of sub) handle(JSON.parse(new TextDecoder().decode(msg.data
 const reply = await nc.request('time.now', '', { timeoutMs: 1000 });
 ```
 
+### NKey Authorization
+
 nkey (ed25519) auth: pass `nkeySeed` (a `SU...` seed) instead of a token. For managed NATS
 (Synadia NGS) or any JWT-secured deployment, pass the contents of a `.creds` file - the user
 JWT and signing seed are extracted automatically:
 
 ```typescript
+import { connect } from 'edgeport/nats';
+
 await using nc = await connect({ hostname: 'connect.ngs.global', creds: env.NATS_CREDS });
+```
+
+### Subscribe with a Queue Group
+
+Distribute messages across multiple workers by subscribing with a queue group:
+
+```typescript
+import { connect } from 'edgeport/nats';
+
+await using nc = await connect({ hostname: 'nats.example.com', token: env.NATS_TOKEN });
+const sub = nc.subscribe('orders.*', { queue: 'workers' });
+
+// directly iterate messages with `for await`
+for await (const msg of sub) {
+	const order = JSON.parse(new TextDecoder().decode(msg.data));
+	// one member of the 'workers' queue group receives each message
+}
 ```
 
 ## MQTT
@@ -378,6 +441,21 @@ const overWs = await connectWebSocket('wss://broker.example.com:8884/mqtt', {
 });
 ```
 
+### Subscribe with Wildcards
+
+Subscribe to topics with `+` (single-level) and `#` (multi-level) wildcards:
+
+```typescript
+import { connect } from 'edgeport/mqtt';
+
+await using mqtt = await connect({ hostname: 'broker.example.com', clientId: 'edge' });
+const sub = mqtt.subscribe('sensors/+/temp', { qos: 1 });
+
+for await (const m of sub) {
+	console.log(m.topic, new TextDecoder().decode(m.payload));
+}
+```
+
 ## STOMP
 
 ```typescript
@@ -392,9 +470,24 @@ await using stomp = await connect({
 await stomp.send('/queue/jobs', JSON.stringify({ task: 'resize' }));
 const sub = stomp.subscribe('/queue/jobs', { ack: 'client' });
 for await (const m of sub) {
-	process(m.body);
+	handleJob(m.body);
 	await m.ack?.();
 }
+```
+
+### Heartbeats
+
+Cloud messaging brokers often require heartbeats to keep the connection alive. edgeport supports STOMP heartbeats:
+
+```typescript
+import { connect } from 'edgeport/stomp';
+
+await using stomp = await connect({
+	hostname: 'mq.example.com',
+	login: env.MQ_USER,
+	passcode: env.MQ_PASS,
+	heartBeat: [10000, 10000] // [send, expect] in ms; negotiated down with the broker
+});
 ```
 
 ## FTP
@@ -433,6 +526,50 @@ const users = await ldap.search({
 	attributes: ['cn', 'mail']
 });
 for (const u of users) console.log(u.dn, u.attributes.mail);
+```
+
+### StartTLS
+
+LDAP StartTLS is supported on the standard LDAP port (389):
+
+```typescript
+import { connect } from 'edgeport/ldap';
+
+await using ldap = await connect({
+	hostname: 'ldap.example.com',
+	port: 389,
+	tls: 'starttls',
+	bindDN: 'cn=svc,dc=example,dc=org',
+	password: env.LDAP_PW
+});
+
+const entries = await ldap.search({
+	base: 'ou=people,dc=example,dc=org',
+	scope: 'sub',
+	filter: '(uid=jdoe)',
+	attributes: ['cn', 'mail']
+});
+```
+
+### LDAP Filters
+
+LDAP search filters are expressed in RFC 4515 syntax:
+
+```typescript
+import { connect } from 'edgeport/ldap';
+
+await using ldap = await connect({
+	hostname: 'ldap.example.com',
+	bindDN: 'cn=svc,dc=example,dc=org',
+	password: env.LDAP_PW
+});
+
+const users = await ldap.search({
+	base: 'ou=people,dc=example,dc=org',
+	scope: 'sub',
+	filter: '(&(objectClass=person)(mail=*@example.org))',
+	attributes: ['cn', 'mail']
+});
 ```
 
 ## Syslog
