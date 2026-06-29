@@ -244,7 +244,6 @@ class NatsConnectionImpl implements NatsConnection {
 	#socket: CoreSocket;
 	#reader: FramedReader;
 	#writer: FramedWriter;
-	readonly #info: ServerInfo;
 	readonly #subs = new Map<string, Subscription>();
 	#sidCounter = 0;
 	#closed = false;
@@ -252,11 +251,10 @@ class NatsConnectionImpl implements NatsConnection {
 	#pongWaiters: { resolve: () => void; reject: (e: Error) => void }[] = [];
 	#pumpError: Error | null = null;
 
-	constructor(socket: CoreSocket, info: ServerInfo) {
+	constructor(socket: CoreSocket, _info: ServerInfo) {
 		this.#socket = socket;
 		this.#reader = socket.reader;
 		this.#writer = socket.writer;
-		this.#info = info;
 	}
 
 	// rebinds reader/writer after a startTls upgrade swaps the socket

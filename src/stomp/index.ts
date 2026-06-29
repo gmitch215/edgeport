@@ -16,7 +16,6 @@ import {
 	ConnectionError,
 	connect as coreConnect,
 	ProtocolError,
-	TimeoutError,
 	type CoreSocket,
 	type FramedReader,
 	type FramedWriter

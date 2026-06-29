@@ -310,8 +310,6 @@ class MqttSessionImpl implements MqttSession {
 	#closed = false;
 	#pumpError: Error | null = null;
 	#keepAliveHandle: unknown = null;
-	// liveness flag flipped by any inbound packet; not yet enforced but tracked per spec
-	#lastActivity = Date.now();
 
 	constructor(transport: MqttTransport, keepAliveSeconds: number, scheduler: MqttScheduler) {
 		this.#transport = transport;
@@ -353,7 +351,6 @@ class MqttSessionImpl implements MqttSession {
 			for (;;) {
 				const pkt = await this.#transport.readPacket();
 				if (pkt === null) break;
-				this.#lastActivity = Date.now();
 				await this.#dispatch(pkt);
 			}
 		} catch (err) {
@@ -389,7 +386,7 @@ class MqttSessionImpl implements MqttSession {
 				return;
 			}
 			case PacketType.PINGRESP:
-				return; // liveness already noted by #lastActivity
+				return; // keep-alive heartbeat acknowledged; nothing to do
 			case PacketType.DISCONNECT:
 				this.#endAll();
 				return;

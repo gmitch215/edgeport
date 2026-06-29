@@ -150,14 +150,13 @@ class Sftp implements SftpSession {
 		{ resolve: (res: SftpResponse) => void; reject: (e: unknown) => void }
 	>();
 	#versionWaiter?: { resolve: (v: number) => void; reject: (e: unknown) => void };
-	#run: Promise<void>;
 
 	constructor(
 		private readonly channel: SshChannelHandle,
 		private readonly ownedSession?: SshSession
 	) {
 		this.#reader = new StreamFramedReader(channel.stdout);
-		this.#run = this.#pump();
+		void this.#pump(); // background reader; errors settle pending requests internally
 	}
 
 	async init(): Promise<void> {
