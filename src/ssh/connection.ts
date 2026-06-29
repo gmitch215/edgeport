@@ -230,9 +230,14 @@ export class SshConnection {
 		this.#pump = this.#runPump();
 	}
 
-	/** @internal sends a raw connection-layer packet. */
+	/** @internal sends a connection-layer packet (held during an in-flight rekey). */
 	_send(payload: Uint8Array): Promise<void> {
-		return this.transport.send(payload);
+		return this.transport.sendData(payload);
+	}
+
+	/** Triggers a key re-exchange and resolves when new keys are installed. */
+	rekey(): Promise<void> {
+		return this.transport.requestRekey();
 	}
 
 	async #runPump(): Promise<void> {

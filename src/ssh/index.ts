@@ -61,6 +61,8 @@ export interface SshConnectOptions {
 	algorithms?: SshAlgorithmPrefs;
 	/** Connect timeout in milliseconds. */
 	timeoutMs?: number;
+	/** Auto re-exchange keys after roughly this many bytes (default 1 GiB; 0 disables). */
+	rekeyThresholdBytes?: number;
 }
 
 /** The result of running a command to completion. */
@@ -88,6 +90,8 @@ export interface SshSession extends AsyncDisposable {
 	shell(): Promise<SshChannelHandle>;
 	/** Opens a subsystem channel (e.g. `sftp`). */
 	subsystem(name: string): Promise<SshChannelHandle>;
+	/** Forces a key re-exchange now; resolves when new keys are installed. */
+	rekey(): Promise<void>;
 	/** Closes the session and underlying transport. */
 	close(): Promise<void>;
 }
@@ -119,6 +123,10 @@ class Session implements SshSession {
 		const ch = await this.conn.openSession();
 		await ch.shell();
 		return ch;
+	}
+
+	rekey(): Promise<void> {
+		return this.conn.rekey();
 	}
 
 	async subsystem(name: string): Promise<SshChannelHandle> {
@@ -163,6 +171,8 @@ export async function connect(opts: SshConnectOptions): Promise<SshSession> {
 		connectTimeoutMs: opts.timeoutMs
 	});
 	const transport = new SshTransport(socket);
+	if (opts.rekeyThresholdBytes !== undefined)
+		transport.rekeyThresholdBytes = opts.rekeyThresholdBytes;
 	try {
 		await transport.handshake({ algorithms: opts.algorithms, hostKey: opts.hostKey });
 		await authenticate(transport, {
