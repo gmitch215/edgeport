@@ -23,6 +23,7 @@
 	"out": "typedoc",
 	"name": "edgeport",
 	"readme": "README.md",
+	"projectDocuments": ["ADVANCED_USAGE.md"],
 	"includeVersion": true,
 	"excludeInternal": true,
 	"excludePrivate": true,
