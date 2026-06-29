@@ -43,7 +43,7 @@ jobs:
       - name: Build
         run: bun run build
       - name: Publish to NPM
-        if: ${{ !github.event.inputs.skip_publish }}
+        if: ${{ !inputs.skip_publish }}
         run: npm publish --provenance --access public
 
   release:
