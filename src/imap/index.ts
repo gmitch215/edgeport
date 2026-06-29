@@ -34,7 +34,7 @@ export interface ImapConnectOptions {
 	 * - `'implicit'` (default): TLS from the first byte (IMAPS, port 993).
 	 * - `'starttls'`: plaintext, upgraded with the `STARTTLS` command (port 143).
 	 */
-	tls?: 'implicit' | 'starttls';
+	tls?: 'implicit' | 'starttls' | 'off';
 	/** Login credentials sent via the `LOGIN` command. */
 	auth: { username: string; password: string };
 	/** Per-operation read deadline in milliseconds. */
@@ -161,11 +161,11 @@ export interface ImapSession extends AsyncDisposable {
  */
 export async function connect(opts: ImapConnectOptions): Promise<ImapSession> {
 	const port = opts.port ?? DEFAULT_IMAP_PORT;
-	const starttls = opts.tls === 'starttls';
+	const coreTls = opts.tls === 'starttls' ? 'starttls' : opts.tls === 'off' ? 'off' : 'on';
 	let socket = await coreConnect({
 		hostname: opts.hostname,
 		port,
-		tls: starttls ? 'starttls' : 'on',
+		tls: coreTls,
 		connectTimeoutMs: opts.timeoutMs
 	});
 	try {

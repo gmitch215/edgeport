@@ -33,8 +33,9 @@ export interface Pop3ConnectOptions {
 	 * Transport security:
 	 * - `'implicit'` (default): TLS from the first byte (POP3S, port 995).
 	 * - `'starttls'`: plaintext, upgraded with the `STLS` command (port 110).
+	 * - `'off'`: plaintext with no upgrade (trusted internal / dev servers).
 	 */
-	tls?: 'implicit' | 'starttls';
+	tls?: 'implicit' | 'starttls' | 'off';
 	/** Login credentials sent via the `USER`/`PASS` commands. */
 	auth: { username: string; password: string };
 	/** Per-operation read deadline in milliseconds. */
@@ -117,11 +118,11 @@ export interface Pop3Session extends AsyncDisposable {
  */
 export async function connect(opts: Pop3ConnectOptions): Promise<Pop3Session> {
 	const port = opts.port ?? DEFAULT_POP3_PORT;
-	const starttls = opts.tls === 'starttls';
+	const coreTls = opts.tls === 'starttls' ? 'starttls' : opts.tls === 'off' ? 'off' : 'on';
 	const socket = await coreConnect({
 		hostname: opts.hostname,
 		port,
-		tls: starttls ? 'starttls' : 'on',
+		tls: coreTls,
 		connectTimeoutMs: opts.timeoutMs
 	});
 	try {
