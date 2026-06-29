@@ -42,8 +42,8 @@ the runtime does not provide. edgeport is:
 - **TypeScript-first.** The types are the contract and the documentation.
 - **Tree-Shakeable.** Import only the protocol you use (`edgeport/ssh`, `edgeport/smtp`, ...).
 - **Tested against Real Servers.** Every protocol is verified under `workerd` against
-  Dockerized servers (OpenSSH, Dropbear, GreenMail, NATS, Mosquitto, ActiveMQ, OpenLDAP,
-  vsftpd, and a WebSocket echo server) - not mocks.
+  Dockerized servers (OpenSSH, Dropbear, GreenMail, NATS with JetStream, Mosquitto, ActiveMQ,
+  OpenLDAP, an FTP server, and a WebSocket echo server) - not mocks.
 
 ## Features
 
@@ -145,7 +145,9 @@ await using ssh = await connect({
 	hostname: 'host',
 	username: 'user',
 	onKeyboardInteractive: async (prompts) => prompts.map(() => env.OTP),
-	hostKey: { verify: (type, key) => type === 'ssh-ed25519' && constantTimeEqual(key, PINNED) }
+	hostKey: {
+		verify: (type, key) => type === 'ssh-ed25519' /* && key matches your pinned host key */
+	}
 });
 ```
 
@@ -188,6 +190,35 @@ await using ssh = await connect({
 });
 await ssh.rekey(); // or force one now
 ```
+
+### Port Forwarding (Tunneling)
+
+`forwardOut` opens a `direct-tcpip` channel: the SSH server connects to a target on your
+behalf and pipes the bytes back, so a Worker can reach a service that isn't internet-exposed
+through an SSH bastion (the `-L` reach-through). It returns a duplex channel - `stdout` is
+inbound bytes, `write()` sends outbound.
+
+```typescript
+import { connect } from 'edgeport/ssh';
+
+await using ssh = await connect({
+	hostname: 'bastion',
+	username: 'u',
+	privateKey: { pem: env.SSH_KEY }
+});
+
+// reach an internal-only Postgres that sits behind the bastion
+await using tunnel = await ssh.forwardOut('10.0.0.5', 5432);
+await tunnel.write(startupPacket);
+for await (const chunk of tunnel.stdout) {
+	// handle each inbound chunk from the tunneled service here
+}
+```
+
+Workers cannot accept inbound connections, so the listening half of `-L`/`-D` (a local SOCKS
+listener) and remote forwarding (`-R`) are out of scope - the server-side reach-through is the
+valuable part and is fully supported. The server must permit TCP forwarding
+(`AllowTcpForwarding`).
 
 ## SFTP
 
@@ -287,6 +318,23 @@ await send({
 });
 ```
 
+### Attachments and Plaintext Relays
+
+Pass `attachments` to build a `multipart/mixed` message; pass `tls: 'off'` to talk to a
+trusted internal relay or dev server with no TLS.
+
+```typescript
+await send({
+	hostname: 'relay.internal',
+	tls: 'off', // plaintext (trusted network); 'starttls' (default) and 'implicit' also supported
+	from: 'reports@internal',
+	to: 'team@internal',
+	subject: 'Daily report',
+	text: 'Attached.',
+	attachments: [{ filename: 'report.csv', content: csvBytes, contentType: 'text/csv' }]
+});
+```
+
 ## IMAP
 
 ```typescript
@@ -365,7 +413,10 @@ ws.send(JSON.stringify({ subscribe: 'ticks' }));
 
 // directly iterate messages with `for await`
 for await (const msg of ws) {
-	if (msg.type === 'text') handle(JSON.parse(msg.data));
+	if (msg.type === 'text') {
+		const event = JSON.parse(msg.data);
+		// handle the parsed event here
+	}
 }
 const { code, reason } = await ws.closed;
 ```
@@ -380,7 +431,10 @@ await using nc = await connect({ hostname: 'nats.example.com', token: env.NATS_T
 // pub/sub
 const sub = nc.subscribe('orders.*', { queue: 'workers' });
 await nc.publish('orders.created', JSON.stringify({ id: 42 }));
-for await (const msg of sub) handle(JSON.parse(new TextDecoder().decode(msg.data)));
+for await (const msg of sub) {
+	const order = JSON.parse(new TextDecoder().decode(msg.data));
+	// handle the order here
+}
 
 // request-reply
 const reply = await nc.request('time.now', '', { timeoutMs: 1000 });
@@ -412,6 +466,26 @@ const sub = nc.subscribe('orders.*', { queue: 'workers' });
 for await (const msg of sub) {
 	const order = JSON.parse(new TextDecoder().decode(msg.data));
 	// one member of the 'workers' queue group receives each message
+}
+```
+
+### JetStream
+
+Durable, at-least-once streams via `nc.jetstream()`: ensure a stream, publish with a
+`PubAck`, and pull with a durable consumer that survives reconnects (un-acked messages are
+redelivered; acked ones are not).
+
+```typescript
+await using nc = await connect({ hostname: 'nats.example.com', token: env.NATS_TOKEN });
+const js = nc.jetstream();
+
+await js.ensureStream('EVENTS', { subjects: ['events.>'] });
+const ack = await js.publish('events.created', JSON.stringify({ id: 42 })); // { stream, seq }
+
+const consumer = await js.pullSubscribe('EVENTS', 'worker-durable', { ackWaitMs: 30_000 });
+for (const msg of await consumer.fetch(10, { expiresMs: 5000 })) {
+	// process msg.data here
+	await msg.ack(); // un-acked messages are redelivered after a reconnect
 }
 ```
 
@@ -456,6 +530,25 @@ for await (const m of sub) {
 }
 ```
 
+### Last Will and Persistent Sessions
+
+Set a `will` and the broker publishes it if the client drops without a clean disconnect -
+the basis for presence / offline detection. Use `cleanSession: false` with a fixed
+`clientId` so queued QoS-1 messages are drained on reconnect.
+
+```typescript
+await using device = await connect({
+	hostname: 'broker.example.com',
+	clientId: 'device-42',
+	cleanSession: false, // persistent session: queued QoS>=1 messages survive a reconnect
+	will: { topic: 'devices/42/status', payload: 'offline', qos: 1, retain: true }
+});
+await device.publish('devices/42/status', 'online', { retain: true });
+
+// ... later, an unexpected drop publishes the will; a clean shutdown does not:
+await device.close({ graceful: false }); // abrupt -> broker fires the 'offline' will
+```
+
 ## STOMP
 
 ```typescript
@@ -470,7 +563,7 @@ await using stomp = await connect({
 await stomp.send('/queue/jobs', JSON.stringify({ task: 'resize' }));
 const sub = stomp.subscribe('/queue/jobs', { ack: 'client' });
 for await (const m of sub) {
-	handleJob(m.body);
+	// process the job (m.body) here
 	await m.ack?.();
 }
 ```
@@ -490,6 +583,20 @@ await using stomp = await connect({
 });
 ```
 
+### Transactions
+
+Stage sends in a transaction; the broker releases them only on `commit()` and discards them
+on `abort()`.
+
+```typescript
+const tx = await stomp.begin();
+await tx.send('/queue/orders', JSON.stringify(order));
+await tx.send('/queue/audit', JSON.stringify(entry));
+if (ok)
+	await tx.commit(); // both messages delivered atomically
+else await tx.abort(); // neither is ever delivered
+```
+
 ## FTP
 
 Plaintext FTP, passive mode (Workers cannot accept the inbound connections active mode needs).
@@ -505,6 +612,23 @@ await using ftp = await connect({
 await ftp.put('reports/today.csv', new TextEncoder().encode('a,b,c\n'));
 for (const entry of await ftp.list('reports')) console.log(entry.name, entry.size);
 const bytes = await ftp.get('reports/today.csv');
+```
+
+### ASCII Mode and Resume
+
+`get`/`put` take an options object: `type: 'ascii'` issues `TYPE A` (line-ending conversion)
+vs the default `'binary'` (`TYPE I`); `offset` issues `REST <n>` to resume a download, and
+`append: true` resumes an upload (`APPE`) - the practical recovery path after a dropped data
+channel.
+
+```typescript
+// resume an interrupted upload from where it stopped, and download just the tail
+await ftp.put('big.bin', firstChunk);
+await ftp.put('big.bin', restOfFile, { append: true });
+const tail = await ftp.get('big.bin', { offset: firstChunk.length });
+
+// transfer a text file in ASCII mode
+await ftp.put('records.txt', data, { type: 'ascii' });
 ```
 
 ## LDAP / LDAPS
@@ -591,6 +715,12 @@ await log.log({
 ```
 
 ## Real-World Recipes
+
+> [!NOTE]
+> For larger **multi-protocol** workflows - mail automation, secure deploy/ops, an HL7
+> integration engine, device fleet management, resilience/recovery, and more - see
+> [ADVANCED_USAGE.md](./ADVANCED_USAGE.md), each backed by an end-to-end integration test in
+> [`test/integration/recipes/`](./test/integration/recipes/).
 
 ### A cron Worker that runs a Remote Command
 
@@ -756,8 +886,9 @@ try {
 - **ChaCha20 throughput.** `chacha20-poly1305@openssh.com` is pure-JS (via `@noble/ciphers`)
   and slower than the hardware-paced AES-GCM that WebCrypto provides; AES-GCM is preferred
   during negotiation. Watch Worker CPU limits on very large ChaCha transfers.
-- **No agent forwarding, X11, or port forwarding.** edgeport implements the client side of
-  exec/shell/subsystem and SFTP only.
+- **No agent forwarding or X11.** Local port forwarding is supported via `forwardOut`
+  (`direct-tcpip` reach-through); SOCKS (`-D`) and remote (`-R`) forwarding are out of scope
+  because Workers cannot accept inbound connections.
 - **Encrypted private keys**: encrypted PKCS#8 (PBES2) and OpenSSH-format keys are
   supported; legacy `DEK-Info` PEM and `aes-gcm`/`chacha20-poly1305` OpenSSH key ciphers
   are not (re-encrypt with `aes256-ctr`).
