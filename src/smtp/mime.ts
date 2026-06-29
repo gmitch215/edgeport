@@ -40,6 +40,54 @@ function header(name: string, value: string): string {
 	return `${name}: ${value}`;
 }
 
+/** Encodes bytes as base64 wrapped at 76 columns (RFC 2045). */
+function base64Lines(data: Uint8Array): string[] {
+	let bin = '';
+	for (const b of data) bin += String.fromCharCode(b);
+	const b64 = btoa(bin);
+	const out: string[] = [];
+	for (let i = 0; i < b64.length; i += 76) out.push(b64.slice(i, i + 76));
+	return out.length ? out : [''];
+}
+
+// renders the message body as a MIME entity (its content-type header line(s) + content),
+// so it can be inlined or nested as the first part of a multipart/mixed envelope
+function renderBody(
+	text: string | undefined,
+	html: string | undefined
+): {
+	headerLines: string[];
+	contentLines: string[];
+} {
+	if (text !== undefined && html !== undefined) {
+		const boundary = `=_alt_${crypto.randomUUID().replace(/-/g, '')}`;
+		return {
+			headerLines: [header('Content-Type', `multipart/alternative; boundary="${boundary}"`)],
+			contentLines: [
+				`--${boundary}`,
+				header('Content-Type', 'text/plain; charset=utf-8'),
+				'',
+				...text.split(/\r\n|\n/),
+				`--${boundary}`,
+				header('Content-Type', 'text/html; charset=utf-8'),
+				'',
+				...html.split(/\r\n|\n/),
+				`--${boundary}--`
+			]
+		};
+	}
+	if (html !== undefined) {
+		return {
+			headerLines: [header('Content-Type', 'text/html; charset=utf-8')],
+			contentLines: html.split(/\r\n|\n/)
+		};
+	}
+	return {
+		headerLines: [header('Content-Type', 'text/plain; charset=utf-8')],
+		contentLines: (text ?? '').split(/\r\n|\n/)
+	};
+}
+
 /**
  * Builds the raw RFC 5322 message bytes for a {@link Mail}.
  *
@@ -88,32 +136,31 @@ export function buildMime(mail: Mail): Uint8Array {
 		}
 	}
 
-	const text = mail.text;
-	const html = mail.html;
+	const body = renderBody(mail.text, mail.html);
+	const attachments = mail.attachments ?? [];
 
-	if (text !== undefined && html !== undefined) {
-		// both bodies -> multipart/alternative so clients pick the richest they render
-		const boundary = `=_edgeport_${crypto.randomUUID().replace(/-/g, '')}`;
-		lines.push(header('Content-Type', `multipart/alternative; boundary="${boundary}"`));
-		lines.push('');
-		lines.push(`--${boundary}`);
-		lines.push(header('Content-Type', 'text/plain; charset=utf-8'));
-		lines.push('');
-		lines.push(...text.split(/\r\n|\n/));
-		lines.push(`--${boundary}`);
-		lines.push(header('Content-Type', 'text/html; charset=utf-8'));
-		lines.push('');
-		lines.push(...html.split(/\r\n|\n/));
-		lines.push(`--${boundary}--`);
-	} else if (html !== undefined) {
-		lines.push(header('Content-Type', 'text/html; charset=utf-8'));
-		lines.push('');
-		lines.push(...html.split(/\r\n|\n/));
+	if (attachments.length === 0) {
+		// no attachments -> the body entity is the message body
+		lines.push(...body.headerLines, '', ...body.contentLines);
 	} else {
-		// default to a (possibly empty) text/plain body
-		lines.push(header('Content-Type', 'text/plain; charset=utf-8'));
-		lines.push('');
-		lines.push(...(text ?? '').split(/\r\n|\n/));
+		// attachments -> wrap the body + each file in a multipart/mixed envelope
+		const boundary = `=_mixed_${crypto.randomUUID().replace(/-/g, '')}`;
+		lines.push(header('Content-Type', `multipart/mixed; boundary="${boundary}"`));
+		lines.push('', `--${boundary}`, ...body.headerLines, '', ...body.contentLines);
+		for (const att of attachments) {
+			lines.push(`--${boundary}`);
+			lines.push(
+				header(
+					'Content-Type',
+					`${att.contentType ?? 'application/octet-stream'}; name="${att.filename}"`
+				)
+			);
+			lines.push(header('Content-Transfer-Encoding', 'base64'));
+			lines.push(header('Content-Disposition', `attachment; filename="${att.filename}"`));
+			lines.push('');
+			lines.push(...base64Lines(att.content));
+		}
+		lines.push(`--${boundary}--`);
 	}
 
 	return encoder.encode(lines.join('\r\n'));

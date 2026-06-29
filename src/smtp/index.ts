@@ -46,8 +46,9 @@ export interface SmtpConnectOptions {
 	 * Transport security:
 	 * - `'starttls'` (default): connect in plaintext, upgrade via STARTTLS.
 	 * - `'implicit'`: TLS from the first byte (SMTPS, port 465).
+	 * - `'off'`: plaintext with no upgrade (for trusted internal relays / dev servers).
 	 */
-	tls?: 'starttls' | 'implicit';
+	tls?: 'starttls' | 'implicit' | 'off';
 	/** Credentials; when omitted, no `AUTH` is attempted. */
 	auth?: {
 		/** Login user (often the full email address). */
@@ -87,6 +88,11 @@ export interface Mail {
 	html?: string;
 	/** Extra headers appended verbatim (keep values ASCII). */
 	headers?: Record<string, string>;
+	/**
+	 * File attachments. When present the message is built as `multipart/mixed` with the
+	 * text/html body as the first part and each file base64-encoded after it.
+	 */
+	attachments?: Array<{ filename: string; content: Uint8Array; contentType?: string }>;
 	/** A complete, pre-rendered RFC 5322 message; bypasses the MIME builder when set. */
 	raw?: Uint8Array;
 }
@@ -455,10 +461,11 @@ export async function _sessionFromSocket(
 export async function connect(opts: SmtpConnectOptions): Promise<SmtpSession> {
 	const tls = opts.tls ?? 'starttls';
 	const port = opts.port ?? (tls === 'implicit' ? IMPLICIT_TLS_PORT : DEFAULT_SUBMISSION_PORT);
+	const coreTls = tls === 'implicit' ? 'on' : tls === 'off' ? 'off' : 'starttls';
 	const socket = await coreConnect({
 		hostname: opts.hostname,
 		port,
-		tls: tls === 'implicit' ? 'on' : 'starttls',
+		tls: coreTls,
 		connectTimeoutMs: opts.timeoutMs
 	});
 	return _sessionFromSocket(socket, opts);
