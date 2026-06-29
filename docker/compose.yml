@@ -1,0 +1,47 @@
+services:
+  openssh:
+    image: linuxserver/openssh-server@sha256:67d4c3a1402179a6579aa217a38b52ced557eb8a0c17a8e32fe986a4549fdee4
+    environment:
+      PUID: '1000'
+      PGID: '1000'
+      USER_NAME: tester
+      USER_PASSWORD: testpass
+      PASSWORD_ACCESS: 'true'
+      SUDO_ACCESS: 'false'
+      PUBLIC_KEY: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnF7atOlMGjLStyDOX18TjMUk5v41Xsl+GrO+Kj2o+9 edgeport-test'
+    ports:
+      - '127.0.0.1:2222:2222'
+
+  dropbear:
+    image: alpine@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+    command:
+      - sh
+      - -c
+      - 'apk add --no-cache dropbear >/dev/null && adduser -D tester && echo "tester:testpass" | chpasswd && exec dropbear -F -E -R -p 2223'
+    healthcheck:
+      test: ['CMD', 'nc', '-z', '127.0.0.1', '2223']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    ports:
+      - '127.0.0.1:2223:2223'
+
+  greenmail:
+    image: greenmail/standalone@sha256:3ac5a83dd6727cf95e4d50e18907fb8ee7bbf5f67e8534714dee2fb1b5b2e1d4
+    environment:
+      GREENMAIL_OPTS: '-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=tester:testpass@localhost -Dgreenmail.verbose'
+    ports:
+      - '127.0.0.1:3025:3025' # smtp
+      - '127.0.0.1:3465:3465' # smtps (implicit tls)
+      - '127.0.0.1:3143:3143' # imap
+      - '127.0.0.1:3993:3993' # imaps (implicit tls)
+      - '127.0.0.1:3110:3110' # pop3
+      - '127.0.0.1:3995:3995' # pop3s (implicit tls)
+      - '127.0.0.1:8080:8080' # rest api (readiness)
+
+  ws-echo:
+    image: jmalloc/echo-server@sha256:86f2c45aa7e7ebe1be30b21f8cfff25a7ed6e3b059751822d4b35bf244a688d5
+    environment:
+      PORT: '8081'
+    ports:
+      - '127.0.0.1:8081:8081'
