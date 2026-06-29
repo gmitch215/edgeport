@@ -777,11 +777,12 @@ export async function connect(opts: MqttConnectOptions): Promise<MqttSession> {
  */
 export async function connectWebSocket(
 	url: string,
-	opts: MqttConnectOptions
+	opts: Omit<MqttConnectOptions, 'hostname' | 'transport' | 'url'> = {}
 ): Promise<MqttSession> {
 	const ws = await wsConnect(url, { protocols: ['mqtt'] });
 	try {
-		return await _connectOverTransport(wsTransport(ws), opts);
+		// hostname is unused on the WS path (the URL carries it); satisfy the shared type
+		return await _connectOverTransport(wsTransport(ws), { ...opts, hostname: '' });
 	} catch (err) {
 		ws.close();
 		throw err;
