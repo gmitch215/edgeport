@@ -1,41 +1,27 @@
-#!/usr/bin/env bash
-# deploys ./typedoc to the gh-pages branch (latest-only); arg $1 = short git sha
-# usage: bash typedoc.sh "$(git rev-parse --short HEAD)"
-set -euo pipefail
+git config --local user.email "action@github.com"
+git config --local user.name "GitHub Action"
+git fetch origin gh-pages
 
-SHA="${1:-manual}"
-OUT_DIR="typedoc"
-TMP_DIR="$(mktemp -d)"
+if [ ! -d "docs" ]; then
+  mkdir docs
+fi;
 
-if [ ! -d "$OUT_DIR" ]; then
-	echo "no $OUT_DIR/ found; run 'bun run docs:build' first" >&2
-	exit 1
-fi
+cp -Rfv ./typedoc/* ./docs/
 
-cp -R "$OUT_DIR"/. "$TMP_DIR"/
-touch "$TMP_DIR/.nojekyll"
+git switch -f gh-pages
 
-git config user.name "github-actions[bot]"
-git config user.email "github-actions[bot]@users.noreply.github.com"
+for dir in ./*
+do
+  if [ "$dir" == "./docs" ]; then
+    continue
+  fi
 
-git fetch origin gh-pages || true
-if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
-	git checkout gh-pages
-	git pull --ff-only origin gh-pages || true
-else
-	git checkout --orphan gh-pages
-fi
+  rm -rf "$dir"
+done
 
-# replace tracked content with the fresh build
-git rm -rf . >/dev/null 2>&1 || true
-cp -R "$TMP_DIR"/. .
-rm -rf "$TMP_DIR"
+cp -Rfv ./docs/* ./
+rm -rf ./docs
 
-git add -A
-if git diff --cached --quiet; then
-	echo "no documentation changes"
-	exit 0
-fi
-
-git commit -m "Update TypeDoc ($SHA)"
+git add .
+git commit -m "Update TypeDoc ($1)" --no-verify
 git push -f origin gh-pages
