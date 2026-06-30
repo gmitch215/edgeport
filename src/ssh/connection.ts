@@ -42,6 +42,7 @@ export class SshChannel {
 	#exitState: ChannelExit = { code: null, signal: null };
 	#closed = false;
 	#streamsClosed = false;
+	#closeSent = false; // we have sent our CHANNEL_CLOSE (RFC 4254 5.3: each side sends exactly one)
 
 	// flow-control state
 	sendWindow = 0;
@@ -205,9 +206,19 @@ export class SshChannel {
 		await this.conn._send(new SshWriter().byte(Msg.CHANNEL_EOF).uint32(this.remoteId).bytes());
 	}
 
-	/** Closes the channel. */
+	/**
+	 * @internal claims the right to send our one CHANNEL_CLOSE; returns true iff this caller
+	 * must send it (false if already sent or the channel is finalized/failed).
+	 */
+	_markCloseSent(): boolean {
+		if (this.#closeSent || this.#closed) return false;
+		this.#closeSent = true;
+		return true;
+	}
+
+	/** Closes the channel, sending CHANNEL_CLOSE at most once (idempotent; safe to call twice). */
 	async close(): Promise<void> {
-		if (this.#closed) return;
+		if (!this._markCloseSent()) return;
 		await this.conn._send(new SshWriter().byte(Msg.CHANNEL_CLOSE).uint32(this.remoteId).bytes());
 	}
 
@@ -292,9 +303,12 @@ export class SshConnection {
 			case Msg.CHANNEL_CLOSE: {
 				const ch = this.#channels.get(r.uint32());
 				if (ch) {
-					await this.transport
-						.send(new SshWriter().byte(Msg.CHANNEL_CLOSE).uint32(ch.remoteId).bytes())
-						.catch(() => {});
+					// reply with our own CHANNEL_CLOSE only if we have not already sent one
+					if (ch._markCloseSent()) {
+						await this.transport
+							.send(new SshWriter().byte(Msg.CHANNEL_CLOSE).uint32(ch.remoteId).bytes())
+							.catch(() => {});
+					}
 					ch._finalize();
 					this.#channels.delete(ch.localId);
 				}
