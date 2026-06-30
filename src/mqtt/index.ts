@@ -47,6 +47,7 @@ const DEFAULT_KEEPALIVE_SECONDS = 60;
 const PROTO = 'mqtt';
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 /**
  * A scheduler for the keep-alive timer, matching the shape of the global timer functions.
@@ -143,6 +144,44 @@ export interface MqttMessage {
 	payload: Uint8Array;
 	/** The QoS the message was delivered at. */
 	qos: 0 | 1 | 2;
+	/**
+	 * Decodes the payload as UTF-8 text.
+	 *
+	 * @returns The payload as a string.
+	 * @since 1.0.2
+	 */
+	text(): string;
+	/**
+	 * Decodes the payload as UTF-8 then parses it as JSON.
+	 *
+	 * @typeParam T - The expected shape of the decoded value.
+	 * @returns The parsed value.
+	 * @throws {ProtocolError} If the payload is not valid JSON.
+	 * @since 1.0.2
+	 */
+	json<T = unknown>(): T;
+}
+
+/** A message delivered to a {@link MqttSession.subscribeJson} iterator: the topic and parsed value. */
+export interface MqttJsonMessage<T> {
+	/** The topic the message was published to. */
+	topic: string;
+	/** The payload parsed from JSON. */
+	value: T;
+}
+
+// utf-8 decode of a payload
+function decodeText(data: Uint8Array): string {
+	return decoder.decode(data);
+}
+
+// utf-8 decode then JSON.parse; a parse failure is a ProtocolError, never a raw SyntaxError
+function decodeJson<T>(data: Uint8Array): T {
+	try {
+		return JSON.parse(decoder.decode(data)) as T;
+	} catch (cause) {
+		throw new ProtocolError('mqtt message payload is not valid json', { protocol: PROTO, cause });
+	}
 }
 
 /**
@@ -192,6 +231,25 @@ export interface MqttSession extends AsyncDisposable {
 		opts?: { qos?: 0 | 1 | 2; retain?: boolean }
 	): Promise<void>;
 	/**
+	 * Publishes a value as JSON to a topic.
+	 *
+	 * The value is `JSON.stringify`-ed and encoded as UTF-8, then published with {@link publish}.
+	 * The returned promise tracks broker confirmation at the requested QoS, exactly like
+	 * {@link publish}.
+	 *
+	 * @param topic - The topic to publish to.
+	 * @param value - The value to serialize and publish.
+	 * @param opts - Optional QoS (default 0) and retain flag.
+	 * @returns Resolves once the publish is confirmed at the requested QoS.
+	 * @throws {ConnectionError} If the session is closed.
+	 * @since 1.0.2
+	 */
+	publishJson(
+		topic: string,
+		value: unknown,
+		opts?: { qos?: 0 | 1 | 2; retain?: boolean }
+	): Promise<void>;
+	/**
 	 * Subscribes to a topic filter.
 	 *
 	 * Sends a SUBSCRIBE and returns a subscription whose async iterator yields matching messages.
@@ -203,6 +261,23 @@ export interface MqttSession extends AsyncDisposable {
 	 * @returns A subscription async iterable.
 	 */
 	subscribe(topicFilter: string, opts?: { qos?: 0 | 1 | 2 }): MqttSubscription;
+	/**
+	 * Subscribes to a topic filter and yields each message with its payload parsed from JSON.
+	 *
+	 * A thin JSON layer over {@link subscribe}: each delivered message's payload is UTF-8 decoded
+	 * and `JSON.parse`-d. Iterate the result with `for await`. It is an `AsyncDisposable`, so
+	 * `await using` unsubscribes automatically.
+	 *
+	 * @typeParam T - The expected shape of each decoded value.
+	 * @param filter - The topic filter (may contain `+` / `#` wildcards).
+	 * @param opts - Optional maximum QoS to request (default 0).
+	 * @returns An async iterable of `{ topic, value }`, also an `AsyncDisposable`.
+	 * @since 1.0.2
+	 */
+	subscribeJson<T = unknown>(
+		filter: string,
+		opts?: { qos?: 0 | 1 | 2 }
+	): AsyncIterable<MqttJsonMessage<T>> & AsyncDisposable;
 	/**
 	 * Unsubscribes from a topic filter and ends its subscription.
 	 *
@@ -397,7 +472,14 @@ class MqttSessionImpl implements MqttSession {
 
 	// routes an inbound PUBLISH to matching subscriptions and runs the QoS ack handshake
 	async #handlePublish(pkt: Extract<DecodedPacket, { type: PacketType.PUBLISH }>): Promise<void> {
-		const msg: MqttMessage = { topic: pkt.topic, payload: pkt.payload, qos: pkt.qos };
+		const payload = pkt.payload;
+		const msg: MqttMessage = {
+			topic: pkt.topic,
+			payload,
+			qos: pkt.qos,
+			text: () => decodeText(payload),
+			json: <T = unknown>(): T => decodeJson<T>(payload)
+		};
 		for (const sub of this.#subs.values()) {
 			if (topicMatches(sub.topicFilter, pkt.topic)) sub.deliver(msg);
 		}
@@ -452,6 +534,14 @@ class MqttSessionImpl implements MqttSession {
 		await ack;
 	}
 
+	publishJson(
+		topic: string,
+		value: unknown,
+		opts?: { qos?: 0 | 1 | 2; retain?: boolean }
+	): Promise<void> {
+		return this.publish(topic, encoder.encode(JSON.stringify(value)), opts);
+	}
+
 	subscribe(topicFilter: string, opts?: { qos?: 0 | 1 | 2 }): MqttSubscription {
 		this.#assertOpen();
 		const qos = opts?.qos ?? 0;
@@ -474,6 +564,21 @@ class MqttSessionImpl implements MqttSession {
 				this.#subs.delete(topicFilter);
 			});
 		return sub;
+	}
+
+	subscribeJson<T = unknown>(
+		filter: string,
+		opts?: { qos?: 0 | 1 | 2 }
+	): AsyncIterable<MqttJsonMessage<T>> & AsyncDisposable {
+		const sub = this.subscribe(filter, opts);
+		return {
+			async *[Symbol.asyncIterator](): AsyncIterator<MqttJsonMessage<T>> {
+				for await (const msg of sub) {
+					yield { topic: msg.topic, value: decodeJson<T>(msg.payload) };
+				}
+			},
+			[Symbol.asyncDispose]: () => sub.unsubscribe()
+		};
 	}
 
 	async #sendUnsubscribe(topicFilter: string): Promise<void> {
