@@ -282,6 +282,155 @@ export interface FtpSession extends AsyncDisposable {
 	 */
 	size(path: string): Promise<number>;
 	/**
+	 * Reports whether a path exists by probing it with `SIZE`.
+	 *
+	 * Issues `SIZE <path>` and treats a `213` reply as existence and a `550` (or any other
+	 * command failure surfaced as {@link ProtocolError}) as absence. Because `SIZE` is a
+	 * file-oriented probe, some servers reject it for directories even when they exist; for a
+	 * directory, prefer {@link FtpSession.cwd} or {@link FtpSession.list}. The `path` is
+	 * resolved by the server relative to the current working directory unless it is absolute.
+	 *
+	 * @param path - Path to probe (absolute, or relative to the working directory).
+	 * @returns `true` if the server reports a size for the path, `false` if it is missing.
+	 * @throws {ConnectionError} If the control connection fails.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * if (await session.exists('/pub/readme.txt')) {
+	 * 	const bytes = await session.get('/pub/readme.txt');
+	 * }
+	 * ```
+	 */
+	exists(path: string): Promise<boolean>;
+	/**
+	 * Creates a directory and all missing parents, like `mkdir -p`.
+	 *
+	 * FTP `MKD` is single-level, so this splits `path` on `/` and issues `MKD` for each
+	 * cumulative segment, ignoring the `550` "already exists" failure on segments that are
+	 * already present. A leading `/` is preserved so absolute paths create from the root; a
+	 * relative path creates under the current working directory. This is a client-side walk:
+	 * it makes one round trip per segment and is not atomic.
+	 *
+	 * @param path - Directory path to create, with `/` separating segments.
+	 * @throws {ConnectionError} If the control connection fails.
+	 * @throws {ProtocolError} If a segment fails for a reason other than already existing.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * await session.ensureDir('/incoming/2026/reports');
+	 * ```
+	 */
+	ensureDir(path: string): Promise<void>;
+	/**
+	 * Retrieves a file and decodes its bytes as UTF-8 text.
+	 *
+	 * A convenience over {@link FtpSession.get} that runs the same `RETR` transfer and decodes
+	 * the result with {@link TextDecoder}. Accepts the same transfer options as `get`.
+	 *
+	 * @param path - Path of the file to fetch.
+	 * @param opts - Optional transfer type and resume offset (see {@link FtpGetOptions}).
+	 * @returns The file contents decoded as UTF-8.
+	 * @throws {ProtocolError} If the server rejects the command.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * const text = await session.getText('/pub/readme.txt');
+	 * ```
+	 */
+	getText(path: string, opts?: FtpGetOptions): Promise<string>;
+	/**
+	 * Encodes a string as UTF-8 and stores it via `STOR`.
+	 *
+	 * A convenience over {@link FtpSession.put} that encodes `content` with {@link TextEncoder}
+	 * and uploads it. Accepts the same transfer options as `put`.
+	 *
+	 * @param path - Destination path.
+	 * @param content - The text to write; encoded as UTF-8.
+	 * @param opts - Optional transfer type and resume mode (see {@link FtpPutOptions}).
+	 * @throws {ProtocolError} If the server rejects the command.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * await session.putText('/incoming/note.txt', 'hello world\n');
+	 * ```
+	 */
+	putText(path: string, content: string, opts?: FtpPutOptions): Promise<void>;
+	/**
+	 * Retrieves a file and parses it as JSON.
+	 *
+	 * A convenience over {@link FtpSession.get} that decodes the bytes as UTF-8 and runs
+	 * `JSON.parse`. The type parameter `T` annotates the parsed shape; it is not validated at
+	 * runtime.
+	 *
+	 * @typeParam T - The expected shape of the parsed JSON.
+	 * @param path - Path of the JSON file to fetch.
+	 * @returns The parsed value, typed as `T`.
+	 * @throws {ProtocolError} If the server rejects the command.
+	 * @throws {SyntaxError} If the body is not valid JSON.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * interface Config { name: string }
+	 * const cfg = await session.getJson<Config>('/etc/app/config.json');
+	 * ```
+	 */
+	getJson<T = unknown>(path: string): Promise<T>;
+	/**
+	 * Serializes a value as JSON and stores it via `STOR`.
+	 *
+	 * A convenience over {@link FtpSession.put} that runs `JSON.stringify`, encodes the result
+	 * as UTF-8, and uploads it.
+	 *
+	 * @param path - Destination path.
+	 * @param value - The value to serialize; must be JSON-serializable.
+	 * @param opts - Optional formatting; `space` is forwarded to `JSON.stringify` for indentation.
+	 * @throws {ProtocolError} If the server rejects the command.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * await session.putJson('/etc/app/config.json', { name: 'edge' }, { space: 2 });
+	 * ```
+	 */
+	putJson(path: string, value: unknown, opts?: { space?: number }): Promise<void>;
+	/**
+	 * Recursively deletes a directory tree (files then directories, depth-first).
+	 *
+	 * Walks `path` with `LIST`, deleting files with `DELE` and recursing into subdirectories,
+	 * then removes each emptied directory with `RMD`. This is a client-side walk: it makes many
+	 * round trips (`O(N)` for `N` entries) and is not atomic, so a failure partway through
+	 * leaves the tree partly deleted. Rejects when `path` is empty or `/` as a guard against
+	 * wiping the server root. The `path` is resolved by the server relative to the current
+	 * working directory unless it is absolute.
+	 *
+	 * @param path - Directory tree to remove; must not be empty or `/`.
+	 * @throws {ProtocolError} If `path` is empty or `/`, or the server rejects a command.
+	 * @throws {ConnectionError} If the control connection fails.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * await session.removeAll('/incoming/2025');
+	 * ```
+	 */
+	removeAll(path: string): Promise<void>;
+	/**
+	 * Returns a file's last-modified time via `MDTM`.
+	 *
+	 * Issues `MDTM <path>` and parses the `213 YYYYMMDDHHMMSS` reply as a UTC timestamp. Per
+	 * RFC 3659 the `MDTM` time is always UTC. A fractional-seconds suffix (`.sss`), when the
+	 * server sends one, is parsed too. The `path` is resolved by the server relative to the
+	 * current working directory unless it is absolute.
+	 *
+	 * @param path - Path of the file to stat.
+	 * @returns The modification time as a {@link Date}.
+	 * @throws {ProtocolError} If the server rejects the command or returns a malformed timestamp.
+	 * @since 1.0.2
+	 * @example
+	 * ```typescript
+	 * const when = await session.mtime('/pub/readme.txt');
+	 * ```
+	 */
+	mtime(path: string): Promise<Date>;
+	/**
 	 * Sends `QUIT` and closes the control connection.
 	 *
 	 * @returns Resolves once the socket is closed.
@@ -423,6 +572,40 @@ export function parseListLine(line: string): FtpEntry {
 	const tokens = line.trim().split(/\s+/);
 	const name = tokens.length > 0 ? tokens[tokens.length - 1]! : line;
 	return { name, isDirectory, raw: line };
+}
+
+/**
+ * Parses an `MDTM` (RFC 3659) `213` reply timestamp into a UTC {@link Date}.
+ *
+ * The reply text is `YYYYMMDDHHMMSS` with an optional `.sss` fractional-seconds suffix, always
+ * expressed in UTC. The fields are read positionally and assembled with `Date.UTC`.
+ *
+ * @param text - The `213` reply text, e.g. `20260628120000` or `20260628120000.250`.
+ * @returns The modification time as a UTC `Date`.
+ * @throws {ProtocolError} If the text is not a 14-digit timestamp.
+ * @since 1.0.2
+ * @example
+ * ```typescript
+ * parseMdtm('20260628120000'); // 2026-06-28T12:00:00.000Z
+ * ```
+ */
+export function parseMdtm(text: string): Date {
+	const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\.(\d+))?/.exec(text.trim());
+	if (!m) {
+		throw new ProtocolError(`malformed MDTM reply: ${text}`, { protocol: PROTO });
+	}
+	// pad/truncate a fractional-seconds suffix to whole milliseconds
+	const ms = m[7] ? Number((m[7] + '000').slice(0, 3)) : 0;
+	const t = Date.UTC(
+		Number(m[1]),
+		Number(m[2]) - 1,
+		Number(m[3]),
+		Number(m[4]),
+		Number(m[5]),
+		Number(m[6]),
+		ms
+	);
+	return new Date(t);
 }
 
 /**
@@ -782,6 +965,75 @@ class FtpSessionImpl implements FtpSession {
 			throw new ProtocolError(`malformed SIZE reply: ${reply.text}`, { protocol: PROTO });
 		}
 		return n;
+	}
+
+	async exists(path: string): Promise<boolean> {
+		try {
+			await this.size(path);
+			return true;
+		} catch (err) {
+			// a missing path surfaces as ProtocolError (550); anything else (connection, auth) rethrows
+			if (err instanceof ProtocolError) return false;
+			throw err;
+		}
+	}
+
+	async ensureDir(path: string): Promise<void> {
+		// preserve a leading slash so absolute paths build from the root
+		const absolute = path.startsWith('/');
+		const segments = path.split('/').filter((s) => s.length > 0);
+		let prefix = absolute ? '' : '.';
+		for (const segment of segments) {
+			prefix = prefix === '' ? `/${segment}` : `${prefix}/${segment}`;
+			const reply = await this.#control.command(`MKD ${prefix}`);
+			// 550 means the segment already exists (or cannot be made); single-level MKD, so ignore
+			if (reply.code === 257 || reply.code === 550) continue;
+			this.#control.expect(reply, 257);
+		}
+	}
+
+	async getText(path: string, opts?: FtpGetOptions): Promise<string> {
+		return new TextDecoder().decode(await this.get(path, opts));
+	}
+
+	async putText(path: string, content: string, opts?: FtpPutOptions): Promise<void> {
+		await this.put(path, new TextEncoder().encode(content), opts);
+	}
+
+	async getJson<T = unknown>(path: string): Promise<T> {
+		return JSON.parse(await this.getText(path)) as T;
+	}
+
+	async putJson(path: string, value: unknown, opts?: { space?: number }): Promise<void> {
+		await this.putText(path, JSON.stringify(value, null, opts?.space));
+	}
+
+	async removeAll(path: string): Promise<void> {
+		const trimmed = path.trim();
+		// guard against wiping the server root or the working directory
+		if (trimmed === '' || trimmed === '/') {
+			throw new ProtocolError(`refusing to removeAll on ${JSON.stringify(path)}`, {
+				protocol: PROTO
+			});
+		}
+		// depth-first: clear children before removing the directory itself
+		const entries = await this.list(trimmed);
+		for (const entry of entries) {
+			// skip the self/parent links some servers include in LIST output
+			if (entry.name === '.' || entry.name === '..') continue;
+			const child = trimmed.endsWith('/') ? `${trimmed}${entry.name}` : `${trimmed}/${entry.name}`;
+			if (entry.isDirectory) {
+				await this.removeAll(child);
+			} else {
+				await this.delete(child);
+			}
+		}
+		await this.rmdir(trimmed);
+	}
+
+	async mtime(path: string): Promise<Date> {
+		const reply = this.#control.expect(await this.#control.command(`MDTM ${path}`), 213);
+		return parseMdtm(reply.text);
 	}
 
 	async close(): Promise<void> {
