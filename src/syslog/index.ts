@@ -214,6 +214,72 @@ export interface SyslogSession extends AsyncDisposable {
 	 */
 	log(opts: LogOptions): Promise<void>;
 	/**
+	 * Logs a message at {@link Severity.info}.
+	 *
+	 * A shortcut for {@link log} with `severity: 'info'`. Any other field (facility, structured
+	 * data, overrides) can be passed in `opts`.
+	 *
+	 * @param message - The free-form message text.
+	 * @param opts - Optional other fields, identical to {@link LogOptions} minus `severity` and `message`.
+	 * @returns Resolves once the bytes are written.
+	 * @throws {ProtocolError} If the message cannot be formatted.
+	 * @throws {ConnectionError} If the write fails.
+	 * @since 1.0.2
+	 */
+	info(message: string, opts?: Omit<LogOptions, 'severity' | 'message'>): Promise<void>;
+	/**
+	 * Logs a message at {@link Severity.notice}.
+	 *
+	 * A shortcut for {@link log} with `severity: 'notice'`.
+	 *
+	 * @param message - The free-form message text.
+	 * @param opts - Optional other fields, identical to {@link LogOptions} minus `severity` and `message`.
+	 * @returns Resolves once the bytes are written.
+	 * @throws {ProtocolError} If the message cannot be formatted.
+	 * @throws {ConnectionError} If the write fails.
+	 * @since 1.0.2
+	 */
+	notice(message: string, opts?: Omit<LogOptions, 'severity' | 'message'>): Promise<void>;
+	/**
+	 * Logs a message at {@link Severity.warning}.
+	 *
+	 * A shortcut for {@link log} with `severity: 'warning'`.
+	 *
+	 * @param message - The free-form message text.
+	 * @param opts - Optional other fields, identical to {@link LogOptions} minus `severity` and `message`.
+	 * @returns Resolves once the bytes are written.
+	 * @throws {ProtocolError} If the message cannot be formatted.
+	 * @throws {ConnectionError} If the write fails.
+	 * @since 1.0.2
+	 */
+	warn(message: string, opts?: Omit<LogOptions, 'severity' | 'message'>): Promise<void>;
+	/**
+	 * Logs a message at {@link Severity.error}.
+	 *
+	 * A shortcut for {@link log} with `severity: 'error'`.
+	 *
+	 * @param message - The free-form message text.
+	 * @param opts - Optional other fields, identical to {@link LogOptions} minus `severity` and `message`.
+	 * @returns Resolves once the bytes are written.
+	 * @throws {ProtocolError} If the message cannot be formatted.
+	 * @throws {ConnectionError} If the write fails.
+	 * @since 1.0.2
+	 */
+	error(message: string, opts?: Omit<LogOptions, 'severity' | 'message'>): Promise<void>;
+	/**
+	 * Logs a message at {@link Severity.debug}.
+	 *
+	 * A shortcut for {@link log} with `severity: 'debug'`.
+	 *
+	 * @param message - The free-form message text.
+	 * @param opts - Optional other fields, identical to {@link LogOptions} minus `severity` and `message`.
+	 * @returns Resolves once the bytes are written.
+	 * @throws {ProtocolError} If the message cannot be formatted.
+	 * @throws {ConnectionError} If the write fails.
+	 * @since 1.0.2
+	 */
+	debug(message: string, opts?: Omit<LogOptions, 'severity' | 'message'>): Promise<void>;
+	/**
 	 * Frames and sends an already-formatted line verbatim.
 	 *
 	 * @param rawLine - A complete syslog message; it is framed but not otherwise altered.
@@ -448,6 +514,12 @@ function makeSession(
 		await emit(line);
 	};
 
+	// severity shortcut: delegate to log with the matching Severity (warn -> warning)
+	const at =
+		(severity: Severity) =>
+		(message: string, logOpts?: Omit<LogOptions, 'severity' | 'message'>): Promise<void> =>
+			log({ ...logOpts, severity, message });
+
 	const close = async (): Promise<void> => {
 		if (closed) return;
 		closed = true;
@@ -456,6 +528,11 @@ function makeSession(
 
 	return {
 		log,
+		info: at(Severity.info),
+		notice: at(Severity.notice),
+		warn: at(Severity.warning),
+		error: at(Severity.error),
+		debug: at(Severity.debug),
 		emit,
 		close,
 		[Symbol.asyncDispose]: close
