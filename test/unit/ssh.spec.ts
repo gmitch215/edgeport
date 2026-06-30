@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { authenticate, type PacketTransport } from '../../src/auth';
 import { Msg } from '../../src/constants';
 import { AuthError, ConnectionError, ProtocolError } from '../../src/core/errors';
@@ -13,6 +13,11 @@ import {
 } from '../../src/crypto';
 import { buildPaddedBody, NoneCipher, unwrapBody } from '../../src/crypto/packet';
 import { buildKexInit, negotiate, nistp256, parseKexInit } from '../../src/kex';
+import { sudo, sudoExec } from '../../src/ssh';
+import { SshConnection, type ChannelExit } from '../../src/ssh/connection';
+import * as sshIndex from '../../src/ssh/index';
+import { Session, type SshChannelHandle, type SshSession } from '../../src/ssh/index';
+import { assertSafeDeletePath, shellQuote } from '../../src/ssh/shell-quote';
 import { SshTransport } from '../../src/ssh/transport/transport';
 import { SshReader, SshWriter, toMpintBody } from '../../src/wire';
 import osshEc from '../fixtures/ecdsa_openssh?raw';
@@ -503,5 +508,562 @@ describe('encrypted private keys', () => {
 		it('requires a passphrase for an encrypted key', async () => {
 			await expect(loadUserKey({ pem: osshEdEnc })).rejects.toBeInstanceOf(AuthError);
 		});
+	});
+});
+
+// shared channel/session doubles for the sudo + command-helper suites
+const dec = new TextDecoder();
+const enc = new TextEncoder();
+
+interface CannedExec {
+	stdout?: string;
+	stderr?: string;
+	code?: number;
+}
+
+// a stub channel handle that records writes and serves canned stdout/stderr/exit
+function stubChannel(opts: {
+	stdout?: Uint8Array;
+	stderr?: Uint8Array;
+	exit?: ChannelExit;
+}): SshChannelHandle & { writes: Uint8Array[]; eofCalled: boolean; closeCalled: boolean } {
+	const writes: Uint8Array[] = [];
+	const oneChunk = (data?: Uint8Array) =>
+		new ReadableStream<Uint8Array>({
+			start(c) {
+				if (data && data.length) c.enqueue(data);
+				c.close();
+			}
+		});
+	const handle = {
+		writes,
+		eofCalled: false,
+		closeCalled: false,
+		stdout: oneChunk(opts.stdout),
+		stderr: oneChunk(opts.stderr),
+		exit: Promise.resolve(opts.exit ?? { code: 0, signal: null }),
+		async write(data: Uint8Array) {
+			writes.push(data);
+		},
+		async eof() {
+			handle.eofCalled = true;
+		},
+		async close() {
+			handle.closeCalled = true;
+		},
+		[Symbol.asyncDispose]: async () => {}
+	};
+	return handle;
+}
+
+// === sudo (was test/unit/ssh-sudo.spec.ts) ===
+
+// a fake session capturing the execStream command and handing back a stub channel
+function fakeSession(channel: ReturnType<typeof stubChannel>): SshSession & { commands: string[] } {
+	const commands: string[] = [];
+	const session = {
+		commands,
+		async execStream(command: string) {
+			commands.push(command);
+			return channel;
+		},
+		exec: async () => {
+			throw new Error('not used');
+		},
+		shell: async () => {
+			throw new Error('not used');
+		},
+		subsystem: async () => {
+			throw new Error('not used');
+		},
+		forwardOut: async () => {
+			throw new Error('not used');
+		},
+		rekey: async () => {},
+		close: async () => {},
+		[Symbol.asyncDispose]: async () => {}
+	};
+	return session as unknown as SshSession & { commands: string[] };
+}
+
+describe('sudo', () => {
+	it("prefixes sudo -S -p '' and feeds the password + newline to stdin", async () => {
+		const ch = stubChannel({ stdout: new TextEncoder().encode('root\n') });
+		const session = fakeSession(ch);
+
+		const result = await sudo(session, 'whoami', { password: 'hunter2' });
+
+		expect(session.commands).toEqual(["sudo -S -p '' whoami"]);
+		expect(ch.writes).toHaveLength(1);
+		expect(dec.decode(ch.writes[0])).toBe('hunter2\n');
+		expect(ch.eofCalled).toBe(true);
+		expect(ch.closeCalled).toBe(true);
+		expect(dec.decode(result.stdout)).toBe('root\n');
+		expect(result.code).toBe(0);
+	});
+
+	it('returns the channel exit code and stderr', async () => {
+		const ch = stubChannel({
+			stderr: new TextEncoder().encode('denied'),
+			exit: { code: 1, signal: null }
+		});
+		const session = fakeSession(ch);
+
+		const result = await sudo(session, 'reboot', { password: 'pw' });
+
+		expect(result.code).toBe(1);
+		expect(dec.decode(result.stderr)).toBe('denied');
+	});
+
+	it('coerces a null exit code (signal exit) to 0', async () => {
+		const ch = stubChannel({ exit: { code: null, signal: 'KILL' } });
+		const session = fakeSession(ch);
+
+		const result = await sudo(session, 'whoami', { password: 'pw' });
+
+		expect(result.code).toBe(0);
+	});
+});
+
+describe('sudoExec', () => {
+	it('throws when neither sudoPassword nor password is set', async () => {
+		await expect(
+			sudoExec({ hostname: 'h', username: 'u', command: 'id -u' })
+		).rejects.toBeInstanceOf(ProtocolError);
+	});
+
+	it('throws with a clear message mentioning the sudo password', async () => {
+		await expect(sudoExec({ hostname: 'h', username: 'u', command: 'id -u' })).rejects.toThrow(
+			/sudo password/i
+		);
+	});
+
+	it('defaults sudoPassword to the SSH login password (credential reuse)', async () => {
+		const ch = stubChannel({ stdout: new TextEncoder().encode('0\n') });
+		const session = fakeSession(ch);
+		// stub connect so no socket opens; sudoExec must thread the login password into sudo
+		const spy = vi.spyOn(sshIndex, 'connect').mockResolvedValue(session);
+		try {
+			const result = await sudoExec({
+				hostname: 'h',
+				username: 'u',
+				password: 'login-pw',
+				command: 'id -u'
+			});
+			expect(session.commands).toEqual(["sudo -S -p '' id -u"]);
+			expect(dec.decode(ch.writes[0])).toBe('login-pw\n');
+			expect(dec.decode(result.stdout)).toBe('0\n');
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	it('prefers an explicit sudoPassword over the login password', async () => {
+		const ch = stubChannel({});
+		const session = fakeSession(ch);
+		const spy = vi.spyOn(sshIndex, 'connect').mockResolvedValue(session);
+		try {
+			await sudoExec({
+				hostname: 'h',
+				username: 'u',
+				password: 'login-pw',
+				sudoPassword: 'sudo-pw',
+				command: 'whoami'
+			});
+			expect(dec.decode(ch.writes[0])).toBe('sudo-pw\n');
+		} finally {
+			spy.mockRestore();
+		}
+	});
+});
+
+// === command helpers (was test/unit/ssh-commands.spec.ts) ===
+
+// a real Session (so the helper bodies under test run for real) with exec/execStream
+// overridden on the instance to record the command line and return canned results. the
+// fake `conn` is never touched because every helper routes through this.exec/this.execStream.
+function makeSession(canned: CannedExec | (() => CannedExec) = {}) {
+	const execCommands: string[] = [];
+	const streamCommands: string[] = [];
+	const session = new Session({} as never) as unknown as SshSession & {
+		execCommands: string[];
+		streamCommands: string[];
+		lastChannel: ReturnType<typeof stubChannel> | null;
+	};
+	session.execCommands = execCommands;
+	session.streamCommands = streamCommands;
+	session.lastChannel = null;
+	session.exec = async (command: string) => {
+		execCommands.push(command);
+		const c = typeof canned === 'function' ? canned() : canned;
+		return {
+			stdout: enc.encode(c.stdout ?? ''),
+			stderr: enc.encode(c.stderr ?? ''),
+			code: c.code ?? 0
+		};
+	};
+	session.execStream = async (command: string) => {
+		streamCommands.push(command);
+		const c = typeof canned === 'function' ? canned() : canned;
+		const lastChannel = stubChannel({ exit: { code: c.code ?? 0, signal: null } });
+		session.lastChannel = lastChannel;
+		return lastChannel;
+	};
+	return session;
+}
+
+describe('shell-quote', () => {
+	it('wraps a plain arg in single quotes', () => {
+		expect(shellQuote('abc')).toBe(`'abc'`);
+	});
+	it('quotes spaces', () => {
+		expect(shellQuote('a b')).toBe(`'a b'`);
+	});
+	it('escapes embedded single quotes as the classic sequence', () => {
+		expect(shellQuote("it's")).toBe(`'it'\\''s'`);
+	});
+	it('leaves $ and ; inert inside the quotes', () => {
+		expect(shellQuote('$(x); y')).toBe(`'$(x); y'`);
+	});
+});
+
+describe('assertSafeDeletePath', () => {
+	it.each(['', '   ', '/', '~', '.', '..', ' / '])('rejects %j', (target) => {
+		expect(() => assertSafeDeletePath(target)).toThrow(ProtocolError);
+	});
+	it('allows a normal path', () => {
+		expect(() => assertSafeDeletePath('/tmp/build')).not.toThrow();
+	});
+});
+
+describe('run', () => {
+	it('decodes and trims stdout by default', async () => {
+		const s = makeSession({ stdout: '  hello\n' });
+		expect(await s.run('echo hi')).toBe('hello');
+	});
+	it('does not trim when trim:false', async () => {
+		const s = makeSession({ stdout: 'a\n' });
+		expect(await s.run('cat', { trim: false })).toBe('a\n');
+	});
+	it('throws ProtocolError with exit code and stderr on nonzero', async () => {
+		const s = makeSession({ stderr: 'boom', code: 7 });
+		await expect(s.run('false')).rejects.toBeInstanceOf(ProtocolError);
+		await expect(s.run('false')).rejects.toThrow(/exited 7/);
+		await expect(s.run('false')).rejects.toThrow(/boom/);
+	});
+});
+
+describe('test / exists', () => {
+	it('test maps code 0 to true', async () => {
+		const s = makeSession({ code: 0 });
+		expect(await s.test('true')).toBe(true);
+	});
+	it('test maps nonzero to false', async () => {
+		const s = makeSession({ code: 1 });
+		expect(await s.test('false')).toBe(false);
+	});
+	it('exists runs test -e on the quoted path', async () => {
+		const s = makeSession({ code: 0 });
+		expect(await s.exists('/etc/hosts')).toBe(true);
+		expect(s.execCommands).toEqual([`test -e '/etc/hosts'`]);
+	});
+});
+
+describe('mkdirp', () => {
+	it('builds mkdir -p with a quoted path', async () => {
+		const s = makeSession();
+		await s.mkdirp('/srv/a b');
+		expect(s.execCommands).toEqual([`mkdir -p '/srv/a b'`]);
+	});
+	it('adds -m with octal mode', async () => {
+		const s = makeSession();
+		await s.mkdirp('/srv/app', { mode: 0o755 });
+		expect(s.execCommands).toEqual([`mkdir -p -m 755 '/srv/app'`]);
+	});
+});
+
+describe('rm', () => {
+	it('builds rm -- with quoted paths', async () => {
+		const s = makeSession();
+		await s.rm('/tmp/x');
+		expect(s.execCommands).toEqual([`rm -- '/tmp/x'`]);
+	});
+	it('adds -r and -f and supports an array', async () => {
+		const s = makeSession();
+		await s.rm(['/tmp/a', '/tmp/b'], { recursive: true, force: true });
+		expect(s.execCommands).toEqual([`rm -r -f -- '/tmp/a' '/tmp/b'`]);
+	});
+	it('refuses a dangerous path before running anything', async () => {
+		const s = makeSession();
+		await expect(s.rm(['/tmp/ok', '/'])).rejects.toBeInstanceOf(ProtocolError);
+		expect(s.execCommands).toEqual([]);
+	});
+});
+
+describe('chmod', () => {
+	it('renders a numeric mode as octal', async () => {
+		const s = makeSession();
+		await s.chmod('/srv/run.sh', 0o755);
+		expect(s.execCommands).toEqual([`chmod 755 -- '/srv/run.sh'`]);
+	});
+	it('passes a string mode through and supports -R + array', async () => {
+		const s = makeSession();
+		await s.chmod(['/a', '/b'], 'u+x', { recursive: true });
+		expect(s.execCommands).toEqual([`chmod -R u+x -- '/a' '/b'`]);
+	});
+});
+
+describe('stat', () => {
+	it('builds a portable GNU-or-BSD stat command', async () => {
+		const s = makeSession({ stdout: 'g 1024 81a4 1700000000 regular file\n' });
+		await s.stat('/etc/hosts');
+		expect(s.execCommands).toEqual([
+			`stat -c 'g %s %f %Y %F' '/etc/hosts' 2>/dev/null || stat -f 'b %z %p %m %HT' '/etc/hosts'`
+		]);
+	});
+	it('parses the GNU (linux) form: tag g, hex mode', async () => {
+		// %f for a regular file with 0644 is 0x81a4; %F is "regular file"
+		const s = makeSession({ stdout: 'g 1024 81a4 1700000000 regular file\n' });
+		const st = await s.stat('/etc/hosts');
+		expect(st.size).toBe(1024);
+		expect(st.mode).toBe(0x81a4);
+		expect(st.mtime).toBe(1700000000);
+		expect(st.isDirectory).toBe(false);
+		expect(st.isSymlink).toBe(false);
+	});
+	it('parses the BSD (macos) form: tag b, octal mode, title-case type', async () => {
+		// BSD %p is octal (100644 == 0x81a4); %HT is "Regular File"
+		const s = makeSession({ stdout: 'b 1024 100644 1700000000 Regular File\n' });
+		const st = await s.stat('/etc/hosts');
+		expect(st.size).toBe(1024);
+		expect(st.mode).toBe(0x81a4);
+		expect(st.mtime).toBe(1700000000);
+		expect(st.isDirectory).toBe(false);
+		expect(st.isSymlink).toBe(false);
+	});
+	it('detects a directory on both GNU and BSD output', async () => {
+		const gnu = makeSession({ stdout: 'g 4096 41ed 1700000000 directory\n' });
+		expect((await gnu.stat('/srv')).isDirectory).toBe(true);
+		const bsd = makeSession({ stdout: 'b 4096 40755 1700000000 Directory\n' });
+		expect((await bsd.stat('/srv')).isDirectory).toBe(true);
+	});
+	it('detects a symlink (multi-word type) on both GNU and BSD output', async () => {
+		const gnu = makeSession({ stdout: 'g 7 a1ff 1700000000 symbolic link\n' });
+		const gst = await gnu.stat('/srv/link');
+		expect(gst.isSymlink).toBe(true);
+		expect(gst.isDirectory).toBe(false);
+		const bsd = makeSession({ stdout: 'b 7 120755 1700000000 Symbolic Link\n' });
+		expect((await bsd.stat('/srv/link')).isSymlink).toBe(true);
+	});
+});
+
+describe('df', () => {
+	it('runs df -Pk and parses POSIX columns, skipping the header', async () => {
+		const out = [
+			'Filesystem 1024-blocks Used Available Capacity Mounted on',
+			'/dev/sda1 102400 51200 51200 50% /',
+			'tmpfs 2048 0 2048 0% /run'
+		].join('\n');
+		const s = makeSession({ stdout: out });
+		const rows = await s.df();
+		expect(s.execCommands).toEqual(['df -Pk']);
+		expect(rows).toHaveLength(2);
+		expect(rows[0]).toEqual({
+			filesystem: '/dev/sda1',
+			sizeKb: 102400,
+			usedKb: 51200,
+			availKb: 51200,
+			usePercent: 50,
+			mountedOn: '/'
+		});
+		expect(rows[1]!.mountedOn).toBe('/run');
+	});
+	it('appends a quoted path when given', async () => {
+		const s = makeSession({
+			stdout:
+				'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 1 1 0 100% /srv\n'
+		});
+		await s.df('/srv/app');
+		expect(s.execCommands).toEqual([`df -Pk '/srv/app'`]);
+	});
+});
+
+describe('which', () => {
+	it('returns the trimmed path on success', async () => {
+		const s = makeSession({ stdout: '/usr/bin/git\n', code: 0 });
+		expect(await s.which('git')).toBe('/usr/bin/git');
+		expect(s.execCommands).toEqual([`command -v 'git'`]);
+	});
+	it('returns null when not found', async () => {
+		const s = makeSession({ code: 1 });
+		expect(await s.which('nope')).toBeNull();
+	});
+});
+
+describe('readTextFile', () => {
+	it('runs cat -- on the quoted path without trimming', async () => {
+		const s = makeSession({ stdout: 'line1\nline2\n' });
+		expect(await s.readTextFile('/etc/hosts')).toBe('line1\nline2\n');
+		expect(s.execCommands).toEqual([`cat -- '/etc/hosts'`]);
+	});
+});
+
+describe('writeTextFile', () => {
+	it('opens cat > on the quoted path and feeds content to stdin then eofs', async () => {
+		const s = makeSession();
+		await s.writeTextFile('/srv/.env', 'PORT=8080\n');
+		expect(s.streamCommands).toEqual([`cat > '/srv/.env'`]);
+		expect(s.lastChannel!.writes).toHaveLength(1);
+		expect(dec.decode(s.lastChannel!.writes[0])).toBe('PORT=8080\n');
+		expect(s.lastChannel!.eofCalled).toBe(true);
+		expect(s.lastChannel!.closeCalled).toBe(true);
+	});
+	it('uses cat >> when append is set', async () => {
+		const s = makeSession();
+		await s.writeTextFile('/srv/log', 'x\n', { append: true });
+		expect(s.streamCommands).toEqual([`cat >> '/srv/log'`]);
+	});
+	it('throws ProtocolError on a nonzero exit', async () => {
+		const s = makeSession({ code: 1 });
+		await expect(s.writeTextFile('/root/locked', 'x')).rejects.toBeInstanceOf(ProtocolError);
+	});
+});
+
+describe('spawnDetached', () => {
+	it('wraps the command in nohup sh -c with redirected stdio and & (portable, not setsid)', async () => {
+		const s = makeSession();
+		await s.spawnDetached('/srv/worker');
+		expect(s.execCommands).toEqual([
+			`nohup sh -c '/srv/worker' >/dev/null 2>/dev/null </dev/null &`
+		]);
+	});
+	it('honors custom stdout/stderr targets', async () => {
+		const s = makeSession();
+		await s.spawnDetached('/srv/worker', { stdout: '/var/log/w.log', stderr: '/var/log/w.err' });
+		expect(s.execCommands).toEqual([
+			`nohup sh -c '/srv/worker' >/var/log/w.log 2>/var/log/w.err </dev/null &`
+		]);
+	});
+});
+
+class FakeTransport {
+	readonly sent: Uint8Array[] = [];
+	#inbox: Uint8Array[] = [];
+	#waiters: ((p: Uint8Array) => void)[] = [];
+
+	send(payload: Uint8Array): Promise<void> {
+		this.sent.push(payload);
+		return Promise.resolve();
+	}
+	// channel data path (held during rekey in the real transport; immediate here)
+	sendData(payload: Uint8Array): Promise<void> {
+		this.sent.push(payload);
+		return Promise.resolve();
+	}
+	requestRekey(): Promise<void> {
+		return Promise.resolve();
+	}
+	close(): Promise<void> {
+		return Promise.resolve();
+	}
+	read(): Promise<Uint8Array> {
+		const p = this.#inbox.shift();
+		if (p) return Promise.resolve(p);
+		return new Promise((r) => this.#waiters.push(r));
+	}
+
+	/** test hook: deliver one inbound packet to the pump */
+	inject(p: Uint8Array): void {
+		const w = this.#waiters.shift();
+		if (w) w(p);
+		else this.#inbox.push(p);
+	}
+}
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+function channelOpenConfirmation(localId: number, remoteId: number): Uint8Array {
+	return new SshWriter()
+		.byte(Msg.CHANNEL_OPEN_CONFIRMATION)
+		.uint32(localId)
+		.uint32(remoteId)
+		.uint32(2 * 1024 * 1024) // send window
+		.uint32(32 * 1024) // max packet
+		.bytes();
+}
+
+function channelClosePacket(recipient: number): Uint8Array {
+	return new SshWriter().byte(Msg.CHANNEL_CLOSE).uint32(recipient).bytes();
+}
+
+// the local id in the client's CHANNEL_OPEN: byte, string(type), uint32(localId)
+function localIdOf(open: Uint8Array): number {
+	const r = new SshReader(open);
+	r.byte();
+	r.stringUtf8();
+	return r.uint32();
+}
+
+const countCloses = (sent: Uint8Array[]) => sent.filter((p) => p[0] === Msg.CHANNEL_CLOSE).length;
+
+async function openChannel(t: FakeTransport, conn: SshConnection, remoteId: number) {
+	const openP = conn.openSession();
+	await tick(); // let openSession emit its CHANNEL_OPEN
+	const opens = t.sent.filter((p) => p[0] === Msg.CHANNEL_OPEN);
+	const open = opens[opens.length - 1]; // the one this call just emitted
+	if (!open) throw new Error('no CHANNEL_OPEN was sent');
+	t.inject(channelOpenConfirmation(localIdOf(open), remoteId));
+	return { ch: await openP, localId: localIdOf(open) };
+}
+
+describe('SshChannel close handshake (RFC 4254 5.3)', () => {
+	// the reported reuse bug: a client-initiated close that then echoed a SECOND CHANNEL_CLOSE
+	// when the server replied; the server had already freed the channel and dropped the connection
+	it('client-initiated close sends exactly one CHANNEL_CLOSE, no duplicate on the server reply', async () => {
+		const t = new FakeTransport();
+		const conn = new SshConnection(t as unknown as SshTransport);
+		const { ch, localId } = await openChannel(t, conn, 100);
+
+		await ch.close();
+		expect(countCloses(t.sent)).toBe(1); // we sent our one close
+
+		// server now sends its own close for our channel; we must NOT answer with a second one
+		t.inject(channelClosePacket(localId));
+		await ch.exit;
+		expect(countCloses(t.sent)).toBe(1); // still exactly one
+	});
+
+	it('server-initiated close is answered with exactly one CHANNEL_CLOSE', async () => {
+		const t = new FakeTransport();
+		const conn = new SshConnection(t as unknown as SshTransport);
+		const { ch, localId } = await openChannel(t, conn, 101);
+
+		t.inject(channelClosePacket(localId));
+		await ch.exit;
+		expect(countCloses(t.sent)).toBe(1); // we echoed exactly one close
+	});
+
+	it('calling close() twice still sends only one CHANNEL_CLOSE (idempotent)', async () => {
+		const t = new FakeTransport();
+		const conn = new SshConnection(t as unknown as SshTransport);
+		const { ch } = await openChannel(t, conn, 102);
+
+		await ch.close();
+		await ch.close();
+		expect(countCloses(t.sent)).toBe(1);
+	});
+
+	it('reusing the connection across many open/close cycles never double-closes', async () => {
+		const t = new FakeTransport();
+		const conn = new SshConnection(t as unknown as SshTransport);
+
+		for (let i = 0; i < 5; i++) {
+			const { ch, localId } = await openChannel(t, conn, 200 + i);
+			await ch.close(); // client closes first each round
+			t.inject(channelClosePacket(localId)); // server replies
+			await ch.exit;
+		}
+		// 5 channels, one close each - never a duplicate that would drop the connection
+		expect(countCloses(t.sent)).toBe(5);
 	});
 });
