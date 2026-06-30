@@ -99,7 +99,7 @@ services:
       - '127.0.0.1:1883:1883'
 
   stomp:
-    image: rmohr/activemq@sha256:b5669f141ac5c455b1010b90d348fe78289bba7e2db5659484d99736b696593c
+    image: rmohr/activemq@sha256:7c58d2d8d6af3242065d120cd138f50d147ccfce7c57d6dbd12ac77fc98c8916
     ports:
       - '127.0.0.1:61613:61613'
 
