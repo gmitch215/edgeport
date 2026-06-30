@@ -37,10 +37,12 @@ const Pkt = {
 	CLOSE: 4,
 	READ: 5,
 	WRITE: 6,
+	SETSTAT: 9,
 	OPENDIR: 11,
 	READDIR: 12,
 	REMOVE: 13,
 	MKDIR: 14,
+	RMDIR: 15,
 	REALPATH: 16,
 	STAT: 17,
 	RENAME: 18,
@@ -52,7 +54,9 @@ const Pkt = {
 } as const;
 
 const PFlags = { READ: 0x1, WRITE: 0x2, CREAT: 0x8, TRUNC: 0x10 };
-const Status = { OK: 0, EOF: 1 };
+const Status = { OK: 0, EOF: 1, NO_SUCH_FILE: 2, FAILURE: 4 };
+// attr flag bits (draft-02 4.4); only PERMISSIONS is used when we encode a SETSTAT
+const Attr = { PERMISSIONS: 0x4 };
 const READ_CHUNK = 32 * 1024;
 
 /** File attributes returned by stat/list. */
@@ -106,6 +110,32 @@ export interface SftpSession extends AsyncDisposable {
 	rename(from: string, to: string): Promise<void>;
 	/** Resolves a path to its canonical absolute form. */
 	realpath(path: string): Promise<string>;
+	/**
+	 * Reports whether a path exists by attempting to {@link stat} it: a "no such file" status
+	 * resolves `false`, success resolves `true`, and any other error propagates.
+	 */
+	exists(path: string): Promise<boolean>;
+	/**
+	 * Creates a directory and every missing parent, like `mkdir -p`. SFTP MKDIR is single-level,
+	 * so this issues one MKDIR per path segment and tolerates segments that already exist.
+	 */
+	ensureDir(path: string): Promise<void>;
+	/** Reads a file and decodes it as UTF-8 text. */
+	readText(path: string): Promise<string>;
+	/** Encodes text as UTF-8 and writes it to a file. */
+	writeText(path: string, content: string, opts?: SftpWriteOptions): Promise<void>;
+	/** Reads a file, decodes it as UTF-8, and parses it as JSON. */
+	readJson<T = unknown>(path: string): Promise<T>;
+	/** Serializes a value as JSON and writes it to a file. */
+	writeJson(path: string, value: unknown, opts?: { space?: number }): Promise<void>;
+	/** Removes an empty directory. */
+	rmdir(path: string): Promise<void>;
+	/** Recursively removes a directory and all of its contents (non-atomic). */
+	removeAll(path: string, opts?: { ignoreMissing?: boolean }): Promise<void>;
+	/** Removes several files. */
+	removeMany(paths: string[], opts?: { ignoreMissing?: boolean }): Promise<void>;
+	/** Changes a path's permission bits. */
+	chmod(path: string, mode: number): Promise<void>;
 	/** Closes the SFTP channel (and the session if this opened it). */
 	close(): Promise<void>;
 }
@@ -114,6 +144,22 @@ export interface SftpSession extends AsyncDisposable {
 interface SftpResponse {
 	type: number;
 	r: SshReader;
+}
+
+// true when err is a ProtocolError carrying the given raw SFTP status code
+function isStatus(err: unknown, code: number): boolean {
+	return (
+		err instanceof ProtocolError &&
+		(err as ProtocolError & { sftpStatus?: number }).sftpStatus === code
+	);
+}
+
+// true when err is any ProtocolError that carries an SFTP status code (vs a transport error)
+function isProtocolStatus(err: unknown): boolean {
+	return (
+		err instanceof ProtocolError &&
+		typeof (err as ProtocolError & { sftpStatus?: number }).sftpStatus === 'number'
+	);
 }
 
 function parseAttrs(r: SshReader): SftpAttrs {
@@ -214,7 +260,10 @@ class Sftp implements SftpSession {
 		const code = r.uint32();
 		const msg = r.stringUtf8();
 		if (code === Status.OK || (allowEof && code === Status.EOF)) return code;
-		throw new ProtocolError(`sftp error ${code}: ${msg || 'operation failed'}`);
+		const err = new ProtocolError(`sftp error ${code}: ${msg || 'operation failed'}`);
+		// stash the raw SFTP status so helpers like exists()/ensureDir() can branch on it
+		(err as ProtocolError & { sftpStatus?: number }).sftpStatus = code;
+		throw err;
 	}
 
 	async #open(path: string, pflags: number): Promise<Uint8Array> {
@@ -403,6 +452,112 @@ class Sftp implements SftpSession {
 		return res.r.stringUtf8();
 	}
 
+	async exists(path: string): Promise<boolean> {
+		try {
+			await this.stat(path);
+			return true;
+		} catch (err) {
+			if (isStatus(err, Status.NO_SUCH_FILE)) return false;
+			throw err;
+		}
+	}
+
+	async ensureDir(path: string): Promise<void> {
+		// build each cumulative prefix; MKDIR is single-level so parents must come first
+		const leading = path.startsWith('/') ? '/' : '';
+		const segments = path.split('/').filter((s) => s.length > 0);
+		let cur = leading;
+		for (const seg of segments) {
+			cur = cur === '/' || cur === '' ? cur + seg : cur + '/' + seg;
+			try {
+				await this.mkdir(cur);
+			} catch (err) {
+				// already-exists (FAILURE/NO_SUCH_FILE quirks vary by server) is fine; rethrow only
+				// if the prefix is not in fact a directory
+				if (!isProtocolStatus(err)) throw err;
+			}
+		}
+		// confirm the final path is really a directory
+		const attrs = await this.stat(path);
+		if (!attrs.isDirectory)
+			throw new ProtocolError(`ensureDir: ${path} exists but is not a directory`);
+	}
+
+	async readText(path: string): Promise<string> {
+		return new TextDecoder().decode(await this.readFile(path));
+	}
+
+	async writeText(path: string, content: string, opts?: SftpWriteOptions): Promise<void> {
+		await this.writeFile(path, new TextEncoder().encode(content), opts);
+	}
+
+	async readJson<T = unknown>(path: string): Promise<T> {
+		const text = new TextDecoder().decode(await this.readFile(path));
+		try {
+			return JSON.parse(text) as T;
+		} catch (err) {
+			throw new ProtocolError(`readJson: ${path} is not valid JSON`, {
+				protocol: 'sftp',
+				cause: err
+			});
+		}
+	}
+
+	async writeJson(path: string, value: unknown, opts?: { space?: number }): Promise<void> {
+		const text = JSON.stringify(value, null, opts?.space);
+		await this.writeFile(path, new TextEncoder().encode(text));
+	}
+
+	async rmdir(path: string): Promise<void> {
+		this.#expectStatus(await this.#request((w, id) => w.byte(Pkt.RMDIR).uint32(id).string(path)));
+	}
+
+	async removeAll(path: string, opts?: { ignoreMissing?: boolean }): Promise<void> {
+		// guard: refuse empty or root so a typo cannot wipe the whole tree
+		if (path === '' || path === '/')
+			throw new ProtocolError(`removeAll: refusing to remove ${path || '(empty path)'}`);
+		// recursive client-side walk: N round trips, non-atomic (no server-side rm -rf in SFTP v3)
+		let entries: SftpEntry[];
+		try {
+			entries = await this.list(path);
+		} catch (err) {
+			if (opts?.ignoreMissing && isStatus(err, Status.NO_SUCH_FILE)) return;
+			throw err;
+		}
+		for (const e of entries) {
+			if (e.filename === '.' || e.filename === '..') continue;
+			const child = path.endsWith('/') ? path + e.filename : path + '/' + e.filename;
+			if (e.attrs.isDirectory) await this.removeAll(child, opts);
+			else await this.remove(child);
+		}
+		await this.rmdir(path);
+	}
+
+	async removeMany(paths: string[], opts?: { ignoreMissing?: boolean }): Promise<void> {
+		for (const p of paths) {
+			try {
+				await this.remove(p);
+			} catch (err) {
+				if (opts?.ignoreMissing && isStatus(err, Status.NO_SUCH_FILE)) continue;
+				throw err;
+			}
+		}
+	}
+
+	async chmod(path: string, mode: number): Promise<void> {
+		// SETSTAT with only the PERMISSIONS attr flag set, then a uint32 mode
+		this.#expectStatus(
+			await this.#request((w, id) =>
+				w
+					.byte(Pkt.SETSTAT)
+					.uint32(id)
+					.string(path)
+					.uint32(Attr.PERMISSIONS)
+					.uint32(mode >>> 0)
+			)
+		);
+	}
+
 	async close(): Promise<void> {
 		await this.channel.close().catch(() => {});
 		if (this.ownedSession) await this.ownedSession.close().catch(() => {});
@@ -464,4 +619,20 @@ export async function putFile(
 ): Promise<void> {
 	await using sftp = await connect(opts);
 	await sftp.writeFile(opts.path, opts.data);
+}
+
+/**
+ * Builds an SFTP session directly over an already-open SSH channel and performs the
+ * INIT/VERSION handshake. Exposed for tests that drive the SFTP protocol against a mock
+ * channel without a real SSH transport.
+ *
+ * @param channel - A duplex channel already attached to the remote `sftp` subsystem.
+ * @returns A ready {@link SftpSession}.
+ * @throws {ProtocolError} If the server negotiates an SFTP version below 3.
+ * @internal
+ */
+export async function _sessionOverChannel(channel: SshChannelHandle): Promise<SftpSession> {
+	const sftp = new Sftp(channel);
+	await sftp.init();
+	return sftp;
 }
