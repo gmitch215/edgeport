@@ -153,35 +153,35 @@ await using ssh = await connect({
 
 ### Executing with Sudo
 
-`sudo` does not read its password from SSH auth - it prompts over the channel. Log in with
-`onKeyboardInteractive` (servers that disable `password` auth still allow this), then open a
-shell, run `sudo -S` so it reads the password from stdin, and feed it the same secret:
+`sudo` does not read its password from SSH auth - it prompts over the channel. The `sudo`
+helpers run `sudo -S -p ''` (read the password from stdin, silence sudo's own prompt) and
+feed it the secret for you. The sudoers policy must allow password sudo without a tty
+(`requiretty` off, the default on most modern distros).
+
+One-shot over a fresh connection - `sudoPassword` defaults to `password`, so the SSH login
+password is reused as the sudo password (the common case):
 
 ```typescript
-import { connect } from 'edgeport/ssh';
+import { sudoExec } from 'edgeport/ssh';
 
-await using ssh = await connect({
+const { stdout, code } = await sudoExec({
 	hostname: 'host',
 	username: 'user',
-	// keyboard-interactive: the server sends prompts, you return one answer per prompt
-	onKeyboardInteractive: async (prompts) =>
-		prompts.map((p) => (/password/i.test(p.prompt) ? env.PW : ''))
+	password: env.PW,
+	command: 'systemctl restart myapp'
 });
-
-await using shell = await ssh.shell();
-const enc = new TextEncoder();
-
-// -S reads the password from stdin; -p '' silences sudo's own prompt
-await shell.write(enc.encode(`sudo -S -p '' systemctl restart myapp\n`));
-await shell.write(enc.encode(`${env.PW}\n`));
-
-const reader = shell.stdout.getReader();
-const { value } = await reader.read();
-console.log(new TextDecoder().decode(value));
+console.log(code, new TextDecoder().decode(stdout));
 ```
 
-Each `prompts` entry carries the server's `prompt` text and an `echo` flag (`false` for
-secrets) so you can match prompts and decide what to send.
+Reusing an already-open session (pass the sudo password explicitly):
+
+```typescript
+import { connect, sudo } from 'edgeport/ssh';
+
+await using ssh = await connect({ hostname: 'host', username: 'user', password: env.PW });
+const { stdout } = await sudo(ssh, 'whoami', { password: env.PW });
+console.log(new TextDecoder().decode(stdout)); // "root"
+```
 
 ### Forcing a Cipher
 
@@ -252,6 +252,61 @@ listener) and remote forwarding (`-R`) are out of scope - the server-side reach-
 valuable part and is fully supported. The server must permit TCP forwarding
 (`AllowTcpForwarding`).
 
+### SSH Command Helpers
+
+On top of `exec`/`execStream`, a session carries ergonomic shell helpers. Each one
+single-quotes the paths and arguments it interpolates, so a space or `$` in a path cannot
+break the command; the destructive `rm` also refuses obviously dangerous targets (`/`, `~`,
+`.`, `..`).
+
+These helpers assume a **POSIX shell**, so they work against Linux, macOS, and other Unix
+remotes - `stat` and `spawnDetached` handle the GNU/BSD differences (GNU `stat -c` vs BSD
+`stat -f`; `nohup` rather than Linux-only `setsid`). For a Windows (`cmd.exe`/PowerShell) or
+other non-POSIX remote, drop down to `run`/`exec`/`execStream` with native commands.
+
+```typescript
+import { connect } from 'edgeport/ssh';
+
+await using ssh = await connect({ hostname: 'host', username: 'user', password: env.PW });
+
+const host = await ssh.run('hostname'); // decoded, trimmed stdout; throws on a nonzero exit
+if (await ssh.test('command -v docker')) {
+	// docker is installed
+}
+if (await ssh.exists('/etc/hosts')) {
+	// the file is there
+}
+```
+
+```typescript
+// files and directories
+await ssh.mkdirp('/srv/app/releases', { mode: 0o755 });
+await ssh.writeTextFile('/srv/app/.env', 'PORT=8080\n');
+const envFile = await ssh.readTextFile('/srv/app/.env');
+await ssh.chmod('/srv/app/run.sh', 0o755);
+const st = await ssh.stat('/srv/app'); // { size, mode, mtime, isDirectory, isSymlink }
+await ssh.rm('/srv/app/tmp', { recursive: true, force: true });
+
+// system introspection and background work
+const usage = await ssh.df('/srv'); // [{ filesystem, sizeKb, usedKb, availKb, usePercent, mountedOn }]
+const git = await ssh.which('git'); // '/usr/bin/git' | null
+await ssh.spawnDetached('/srv/app/worker', { stdout: '/var/log/worker.log' });
+```
+
+For one-call workflows there are connect-run-close one-shots:
+
+```typescript
+import { run, test, exists } from 'edgeport/ssh';
+
+const out = await run({ hostname: 'host', username: 'user', password: env.PW, command: 'uptime' });
+const ok = await exists({
+	hostname: 'host',
+	username: 'user',
+	password: env.PW,
+	path: '/etc/hosts'
+});
+```
+
 ## SFTP
 
 ```typescript
@@ -294,6 +349,38 @@ await using sftp = await connect({ hostname: 'h', username: 'u', password: p });
 const readStream = sftp.createReadStream('/var/log/big.log');
 const writeStream = sftp.createWriteStream('/tmp/bigfile');
 ```
+
+### SFTP Convenience Helpers
+
+Higher-level helpers built on the same request/response framing:
+
+```typescript
+import { connect } from 'edgeport/sftp';
+
+await using sftp = await connect({ hostname: 'h', username: 'u', password: p });
+
+// presence check (a "no such file" status resolves false; other errors propagate)
+if (!(await sftp.exists('/srv/app'))) {
+	await sftp.ensureDir('/srv/app/releases/2026'); // recursive mkdir, one level per segment
+}
+
+// text and JSON round-trips (UTF-8)
+await sftp.writeText('/srv/app/note.txt', 'deployed\n');
+const note = await sftp.readText('/srv/app/note.txt');
+await sftp.writeJson('/srv/app/config.json', { port: 8080 }, { space: 2 });
+const config = await sftp.readJson<{ port: number }>('/srv/app/config.json');
+
+await sftp.chmod('/srv/app/run.sh', 0o755);
+
+// removal: one empty dir, a batch of files, or a whole tree
+await sftp.rmdir('/srv/app/empty');
+await sftp.removeMany(['/tmp/a.log', '/tmp/b.log'], { ignoreMissing: true });
+await sftp.removeAll('/srv/app/releases/old'); // recursive, client-side, non-atomic
+```
+
+`removeAll` walks the tree from the client (one round trip per entry) and refuses an empty
+path or `/`; `ensureDir` tolerates segments that already exist and verifies the leaf is a
+directory.
 
 ## SMTP
 
@@ -453,6 +540,21 @@ for await (const msg of ws) {
 const { code, reason } = await ws.closed;
 ```
 
+### JSON Helpers
+
+```typescript
+import { connect } from 'edgeport/ws';
+
+const ws = await connect('wss://stream.example.com/feed');
+ws.sendJson({ subscribe: 'ticks' });
+for await (const msg of ws) {
+	if (msg.type === 'text') {
+		const event = msg.json<{ price: number }>();
+		// handle the parsed event here
+	}
+}
+```
+
 ## NATS
 
 ```typescript
@@ -521,6 +623,27 @@ for (const msg of await consumer.fetch(10, { expiresMs: 5000 })) {
 }
 ```
 
+### JSON Helpers
+
+`publishJson`/`requestJson` and the per-message `json()`/`text()` accessors remove the
+encode/parse boilerplate:
+
+```typescript
+import { connect } from 'edgeport/nats';
+
+await using nc = await connect({ hostname: 'nats.example.com', token: env.NATS_TOKEN });
+
+await nc.publishJson('readings', { temp: 21.5 });
+for await (const { value } of nc.subscribeJson<{ temp: number }>('readings')) {
+	console.log(value.temp);
+}
+
+const reply = await nc.requestJson<{ sum: number }>('calc.add', [2, 3]);
+```
+
+A subscribe responder replies with `msg.respond(value)`; any received message exposes
+`msg.json<T>()` and `msg.text()`.
+
 ## MQTT
 
 Raw TCP (1883 / TLS 8883) or over WebSocket - same API.
@@ -581,6 +704,22 @@ await device.publish('devices/42/status', 'online', { retain: true });
 await device.close({ graceful: false }); // abrupt -> broker fires the 'offline' will
 ```
 
+### JSON Helpers
+
+```typescript
+import { connect } from 'edgeport/mqtt';
+
+await using mqtt = await connect({ hostname: 'broker.example.com', clientId: 'edge' });
+await mqtt.publishJson('sensors/1', { temp: 21.5 }, { qos: 1 });
+for await (const { topic, value } of mqtt.subscribeJson<{ temp: number }>('sensors/+', {
+	qos: 1
+})) {
+	console.log(topic, value.temp);
+}
+```
+
+A plain `subscribe` message also exposes `msg.json<T>()` and `msg.text()`.
+
 ## STOMP
 
 ```typescript
@@ -629,6 +768,24 @@ if (ok)
 else await tx.abort(); // neither is ever delivered
 ```
 
+### JSON Helpers
+
+```typescript
+import { connect } from 'edgeport/stomp';
+
+await using stomp = await connect({
+	hostname: 'mq.example.com',
+	login: env.MQ_USER,
+	passcode: env.MQ_PASS
+});
+await stomp.sendJson('/queue/jobs', { job: 'reindex', n: 7 }); // sets content-type: application/json
+const sub = stomp.subscribe('/queue/jobs');
+for await (const msg of sub) {
+	const job = msg.json<{ job: string; n: number }>();
+	// handle the job here
+}
+```
+
 ## FTP
 
 Plaintext FTP, passive mode (Workers cannot accept the inbound connections active mode needs).
@@ -661,6 +818,32 @@ const tail = await ftp.get('big.bin', { offset: firstChunk.length });
 
 // transfer a text file in ASCII mode
 await ftp.put('records.txt', data, { type: 'ascii' });
+```
+
+### Convenience Helpers
+
+Higher-level helpers over the raw commands; paths resolve relative to the working directory
+unless absolute.
+
+```typescript
+import { connect } from 'edgeport/ftp';
+
+await using ftp = await connect({
+	hostname: 'files.example.com',
+	username: 'u',
+	password: env.FTP_PW
+});
+
+if (await ftp.exists('/etc/app/config.json')) {
+	const cfg = await ftp.getJson<{ name: string }>('/etc/app/config.json');
+}
+
+await ftp.ensureDir('/incoming/2026/reports'); // recursive mkdir, one MKD per segment
+await ftp.putText('/incoming/note.txt', 'hello world\n');
+const note = await ftp.getText('/incoming/note.txt');
+const when = await ftp.mtime('/incoming/note.txt'); // MDTM, parsed as UTC
+
+await ftp.removeAll('/incoming/2026'); // recursive, client-side, non-atomic; refuses '' and '/'
 ```
 
 ## LDAP / LDAPS
@@ -728,6 +911,53 @@ const users = await ldap.search({
 });
 ```
 
+### Filter Builders
+
+Build search filters from untrusted input safely. The structured builders carry values
+literally, so a `*`, `(`, or `)` in user input becomes a literal byte on the wire and can
+never inject filter syntax. Drop the result straight into `search({ filter })` / `findOne`.
+
+```typescript
+import { connect, and, eq, present } from 'edgeport/ldap';
+
+await using ldap = await connect({
+	hostname: 'ldap.example.com',
+	bindDN: 'cn=svc,dc=example,dc=org',
+	password: env.LDAP_PW
+});
+
+const users = await ldap.search({
+	base: 'ou=people,dc=example,dc=org',
+	filter: and(eq('objectClass', 'person'), present('mail')) // (&(objectClass=person)(mail=*))
+});
+const one = await ldap.findOne({
+	base: 'ou=people,dc=example,dc=org',
+	filter: eq('uid', userInput)
+});
+```
+
+Builders: `and`, `or`, `not`, `eq`, `present`, `gte`, `lte`, `approx`, `substring`, `contains`
+(also grouped under a `filters` namespace). When you assemble a filter string or DN by hand
+instead, escape the interpolated value with `escapeFilterValue` / `escapeDN`.
+
+`authenticate` does the bind-search-bind verify flow in one call:
+
+```typescript
+import { authenticate, eq } from 'edgeport/ldap';
+
+const entry = await authenticate({
+	hostname: 'ldap.example.com',
+	bindDN: 'cn=svc,dc=example,dc=org',
+	bindPassword: env.SVC_PW,
+	base: 'ou=people,dc=example,dc=org',
+	userFilter: eq('uid', username),
+	password: submittedPassword
+});
+if (entry) {
+	// authenticated; entry.dn is the bound user
+}
+```
+
 ## Syslog
 
 ```typescript
@@ -744,6 +974,19 @@ await log.log({
 	message: 'request handled',
 	structuredData: [{ id: 'req@1', params: { ms: '12' } }]
 });
+```
+
+### Severity Shortcuts
+
+`info`/`notice`/`warn`/`error`/`debug` delegate to `log()` with the matching severity:
+
+```typescript
+import { connect } from 'edgeport/syslog';
+
+await using log = await connect({ hostname: 'logs.example.com', appName: 'edge-worker' });
+await log.info('request handled');
+await log.warn('disk almost full', { facility: 'local0' });
+await log.error('request failed', { structuredData: [{ id: 'req@1', params: { code: '500' } }] });
 ```
 
 ## Real-World Recipes
@@ -821,17 +1064,17 @@ for (const m of messages) {
 ### Run a Remote Command and Publish the Result to NATS
 
 ```typescript
-import { exec } from 'edgeport/ssh';
+import { connect as sshConnect } from 'edgeport/ssh';
 import { connect as natsConnect } from 'edgeport/nats';
 
-const { stdout } = await exec({
+await using ssh = await sshConnect({
 	hostname: env.BOX,
 	username: 'deploy',
-	privateKey: { pem: env.SSH_KEY },
-	command: 'df -h /'
+	privateKey: { pem: env.SSH_KEY }
 });
+const disk = await ssh.df('/'); // parsed rows: { filesystem, sizeKb, usedKb, availKb, ... }
 await using nc = await natsConnect({ hostname: env.NATS, token: env.NATS_TOKEN });
-await nc.publish('telemetry.disk', stdout);
+await nc.publishJson('telemetry.disk', disk); // JSON-encodes the structured usage
 ```
 
 ### Bridge MQTT Sensor Readings to Syslog (edge observability)
@@ -860,6 +1103,7 @@ for await (const reading of mqtt.subscribe('sensors/#', { qos: 1 })) {
 
 ```typescript
 import { connect as ldapConnect } from 'edgeport/ldaps';
+import { eq } from 'edgeport/ldap';
 import { connect as stompConnect } from 'edgeport/stomp';
 
 await using dir = await ldapConnect({
@@ -867,7 +1111,8 @@ await using dir = await ldapConnect({
 	bindDN: env.SVC_DN,
 	password: env.SVC_PW
 });
-const allowed = await dir.search({ base: 'ou=people,dc=example,dc=org', filter: `(uid=${uid})` });
+// eq() carries the value literally, so an untrusted uid can't inject filter syntax
+const allowed = await dir.search({ base: 'ou=people,dc=example,dc=org', filter: eq('uid', uid) });
 
 if (allowed.length === 0) {
 	await using mq = await stompConnect({

@@ -97,8 +97,8 @@ transaction is audited to Syslog. An unknown recipient is rejected at the direct
 ```typescript
 import { send } from 'edgeport/smtp';
 import { connect as imapConnect } from 'edgeport/imap';
-import { search as ldapSearch } from 'edgeport/ldap';
-import { connect as syslogConnect, Severity } from 'edgeport/syslog';
+import { search as ldapSearch, eq } from 'edgeport/ldap';
+import { connect as syslogConnect } from 'edgeport/syslog';
 
 const auth = { username: env.MAIL_USER, password: env.MAIL_PW };
 await using audit = await syslogConnect({
@@ -108,19 +108,17 @@ await using audit = await syslogConnect({
 	appName: 'mta'
 });
 
-// 1. validate the recipient against the directory (reject unknown addresses)
+// 1. validate the recipient against the directory (reject unknown addresses).
+// eq() carries the address literally, so an untrusted recipient can't inject filter syntax
 const found = await ldapSearch({
 	hostname: env.LDAP,
 	bindDN: env.SVC_DN,
 	password: env.SVC_PW,
 	base: 'ou=people,dc=example,dc=org',
-	filter: `(mail=${recipient})`
+	filter: eq('mail', recipient)
 });
 if (found.length === 0) {
-	await audit.log({
-		severity: Severity.warning,
-		message: `rejected unknown recipient ${recipient}`
-	});
+	await audit.warn(`rejected unknown recipient ${recipient}`);
 	throw new Error('unknown recipient');
 }
 
@@ -134,7 +132,7 @@ await send({
 	subject: 'Hi',
 	text: 'body'
 });
-await audit.log({ severity: Severity.info, message: `delivered to ${recipient}` });
+await audit.info(`delivered to ${recipient}`);
 
 // 3. the same message is visible via IMAP and POP3; a POP3 read (no DELE) doesn't disturb IMAP
 await using imap = await imapConnect({ hostname: env.MAIL, tls: 'off', auth });
@@ -156,10 +154,10 @@ compliance audit trail.
 
 See [Environment & Services](#environment--services) for value formats and how to obtain each.
 
-A deploy/ops loop over one connection: `exec` `df -P /` and parse free space, upload a build
-artifact over an SFTP session **reused from the SSH connection**, resume an interrupted upload
-with `writeFile(path, data, { offset })`, `chmod`/restart via exec, tail logs over an
-interactive `shell()` channel, and verify a clean `await using` disconnect.
+A deploy/ops loop over one connection: read free space with the `df('/')` helper (parsed rows,
+no text munging), upload a build artifact over an SFTP session **reused from the SSH connection**,
+resume an interrupted upload with `writeFile(path, data, { offset })`, `chmod()` + restart, tail
+logs over an interactive `shell()` channel, and verify a clean `await using` disconnect.
 
 ```typescript
 import { connect as sshConnect } from 'edgeport/ssh';
@@ -171,8 +169,8 @@ await using ssh = await sshConnect({
 	privateKey: { pem: env.SSH_KEY }
 });
 
-// check disk before shipping
-const { stdout } = await ssh.exec('df -P / | tail -1');
+// check disk before shipping (df() returns parsed rows, no text munging)
+const [root] = await ssh.df('/'); // { filesystem, sizeKb, usedKb, availKb, usePercent, mountedOn }
 
 // upload over a REUSED session, resuming if the first attempt was cut short
 await using sftp = await sftpConnect({ session: ssh });
@@ -184,7 +182,8 @@ try {
 }
 
 // apply + restart, then tail the log over an interactive shell
-await ssh.exec('chmod 600 /srv/app.tar && systemctl restart app');
+await ssh.chmod('/srv/app.tar', 0o600);
+await ssh.exec('systemctl restart app');
 await using shell = await ssh.shell();
 await shell.write(new TextEncoder().encode('tail -n 20 /var/log/app.log\n'));
 for await (const chunk of shell.stdout) {
@@ -266,14 +265,15 @@ fan-out, and track presence with an MQTT **Last Will** that fires on an ungracef
 
 ```typescript
 import { connect as ldapConnect } from 'edgeport/ldaps';
+import { escapeDN } from 'edgeport/ldap';
 import { connect as wsConnect } from 'edgeport/ws';
 import { connect as natsConnect } from 'edgeport/nats';
 import { connect as mqttConnect } from 'edgeport/mqtt';
 
-// 1. authenticate the user (LDAP bind is the login gate)
+// 1. authenticate the user (LDAP bind is the login gate; escapeDN guards the RDN value)
 await using dir = await ldapConnect({
 	hostname: env.LDAP,
-	bindDN: `uid=${user},ou=people,dc=example,dc=org`,
+	bindDN: `uid=${escapeDN(user)},ou=people,dc=example,dc=org`,
 	password
 });
 
@@ -335,7 +335,7 @@ await nc.request(
 	'$JS.API.STREAM.CREATE.EVENTS',
 	enc.encode(JSON.stringify({ name: 'EVENTS', subjects: ['events.>'] }))
 );
-await nc.publish('events.created', '{"id":1}'); // acked + persisted by the stream
+await nc.publishJson('events.created', { id: 1 }); // acked + persisted by the stream
 // a durable consumer replays un-acked messages after a reconnect - see the spec for the full dance
 ```
 
@@ -372,7 +372,7 @@ await using device = await mqttConnect({
 	clientId: deviceId,
 	will: { topic: `devices/${deviceId}/status`, payload: 'offline', qos: 1 }
 });
-await device.publish(`devices/${deviceId}/telemetry`, JSON.stringify({ cpu: 0.31 }), { qos: 1 });
+await device.publishJson(`devices/${deviceId}/telemetry`, { cpu: 0.31 }, { qos: 1 });
 
 // operator side: push firmware, verify the checksum on the box, apply, restart
 await using ssh = await sshConnect({
@@ -414,7 +414,7 @@ is not redelivered. Every stage writes an audited Syslog trail.
 import { getFile } from 'edgeport/ftp';
 import { connect as mqttConnect } from 'edgeport/mqtt';
 import { connect as stompConnect } from 'edgeport/stomp';
-import { connect as syslogConnect, Severity } from 'edgeport/syslog';
+import { connect as syslogConnect } from 'edgeport/syslog';
 
 // pick up the batch the lab dropped (plain FTP; FTPS is not supported - see note)
 const batch = new TextDecoder().decode(
@@ -435,7 +435,7 @@ for (const hl7 of messages) {
 	const pid = hl7.split('\r').find((s) => s.startsWith('PID'));
 	await mqtt.publish('hl7/adt', hl7, { qos: 1 }); // downstream consumer A
 	await mq.send('/queue/hl7.ehr', hl7); // downstream consumer B (acks delivery)
-	await audit.log({ severity: Severity.info, message: `routed ${pid}` });
+	await audit.info(`routed ${pid}`);
 }
 
 // the EHR side acks what it has durably stored:
@@ -470,7 +470,7 @@ email goes out over SMTP at the end.
 ```typescript
 import { connect as ftpConnect } from 'edgeport/ftp';
 import { connect as sftpConnect } from 'edgeport/sftp';
-import { connect as syslogConnect, Severity } from 'edgeport/syslog';
+import { connect as syslogConnect } from 'edgeport/syslog';
 import { send } from 'edgeport/smtp';
 
 await using audit = await syslogConnect({
@@ -483,12 +483,12 @@ await using audit = await syslogConnect({
 // 1. pull the fixed-width file the mainframe dropped over plain FTP
 await using ftp = await ftpConnect({ hostname: env.LANDING, username, password });
 const file = await ftp.get('NIGHTLY.DAT');
-await audit.log({ severity: Severity.info, message: 'landed NIGHTLY.DAT' });
+await audit.info('landed NIGHTLY.DAT');
 
 // 2. forward it securely over SFTP (byte-exact; resumes if interrupted)
 await using sftp = await sftpConnect({ hostname: env.DR, username, password });
 await sftp.writeFile('/incoming/nightly.dat', file);
-await audit.log({ severity: Severity.info, message: 'forwarded NIGHTLY.DAT' });
+await audit.info('forwarded NIGHTLY.DAT');
 
 // 3. job-summary email
 await send({
@@ -539,7 +539,7 @@ await using ftp = await ftpConnect({ hostname: env.FTP, username, password }); /
 
 try {
 	const data = await ftp.get('exports/large.csv');
-	await audit.log({ severity: Severity.info, message: `transfer ok ${data.length}b` });
+	await audit.info(`transfer ok ${data.length}b`);
 	await ftp.list('exports'); // control connection still healthy after a large data transfer
 } catch (err) {
 	// the data channel stalled/failed - log it and page on-call
@@ -680,29 +680,23 @@ authorizes the action, locked accounts are denied, and only then does the SSH/SF
 every decision and command audited to Syslog.
 
 ```typescript
-import { connect as ldapConnect, search as ldapSearch } from 'edgeport/ldap';
+import { authenticate, search as ldapSearch, eq } from 'edgeport/ldap';
 import { connect as sshConnect } from 'edgeport/ssh';
 
 async function authorize(uid: string, password: string): Promise<boolean> {
-	// 1. authenticate: bind as the user
-	try {
-		await using u = await ldapConnect({
-			hostname: env.LDAP,
-			bindDN: `uid=${uid},ou=people,dc=example,dc=org`,
-			password
-		});
-	} catch {
-		return false; // bad credentials
-	}
-	// 2. authorize: must be in cn=admins and not locked
-	const [entry] = await ldapSearch({
+	// 1. authenticate via bind-search-bind in one call; eq() keeps an untrusted uid from
+	// injecting filter syntax. returns the located entry, or null on bad password / no match
+	const entry = await authenticate({
 		hostname: env.LDAP,
 		bindDN: env.SVC_DN,
-		password: env.SVC_PW,
-		base: `uid=${uid},ou=people,dc=example,dc=org`,
-		filter: '(objectClass=*)'
+		bindPassword: env.SVC_PW,
+		base: 'ou=people,dc=example,dc=org',
+		userFilter: eq('uid', uid),
+		password
 	});
-	if (entry?.attributes.employeeType?.includes('locked')) return false;
+	if (!entry) return false;
+	// 2. authorize: not locked, and a member of cn=admins
+	if (entry.attributes.employeeType?.includes('locked')) return false;
 	const admins = await ldapSearch({
 		hostname: env.LDAP,
 		bindDN: env.SVC_DN,
@@ -835,7 +829,7 @@ and keeps failing closed on retry until the cert is fixed.
 
 ```typescript
 import { connect as ldapsConnect } from 'edgeport/ldaps';
-import { connect as syslogConnect, Severity } from 'edgeport/syslog';
+import { connect as syslogConnect } from 'edgeport/syslog';
 import { send } from 'edgeport/smtp';
 import { ConnectionError } from 'edgeport';
 
@@ -855,7 +849,7 @@ try {
 	// ... bind ok
 } catch (err) {
 	if (err instanceof ConnectionError) {
-		await audit.log({ severity: Severity.error, message: 'ldaps cert validation failed' });
+		await audit.error('ldaps cert validation failed');
 		await send({
 			hostname: env.SMTP,
 			tls: 'off',
