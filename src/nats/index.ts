@@ -33,6 +33,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 2000;
 const PROTO = 'nats';
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 const CRLF = encoder.encode('\r\n');
 
 /** The subset of the server `INFO` JSON this client reads. */
@@ -96,6 +97,80 @@ export interface NatsMessage {
 	reply?: string;
 	/** The raw payload bytes. */
 	data: Uint8Array;
+	/**
+	 * Decodes the payload as UTF-8 text.
+	 *
+	 * @returns The payload as a string.
+	 * @since 1.0.2
+	 */
+	text(): string;
+	/**
+	 * Decodes the payload as UTF-8 then parses it as JSON.
+	 *
+	 * @typeParam T - The expected shape of the decoded value.
+	 * @returns The parsed value.
+	 * @throws {ProtocolError} If the payload is not valid JSON.
+	 * @since 1.0.2
+	 */
+	json<T = unknown>(): T;
+	/**
+	 * Publishes a JSON reply to this message's {@link NatsMessage.reply} subject.
+	 *
+	 * Only present when the message carries a reply subject (a request); calling it otherwise
+	 * throws. The value is `JSON.stringify`-ed and published as UTF-8.
+	 *
+	 * @param value - The value to serialize and publish.
+	 * @returns Resolves once the reply `PUB` frame is written.
+	 * @throws {ProtocolError} If the message has no reply subject.
+	 * @since 1.0.2
+	 */
+	respond?(value: unknown): Promise<void>;
+}
+
+/** A message delivered to a {@link subscribeJson} iterator: the subject, optional reply, parsed value. */
+export interface NatsJsonMessage<T> {
+	/** The subject the message was published to. */
+	subject: string;
+	/** The reply subject, when the publisher set one (request-reply). */
+	reply?: string;
+	/** The payload parsed from JSON. */
+	value: T;
+}
+
+// wraps the raw fields of an inbound message with the text/json/respond convenience methods
+function makeMessage(
+	conn: NatsConnectionImpl,
+	subject: string,
+	sid: string,
+	reply: string | undefined,
+	data: Uint8Array
+): NatsMessage {
+	const msg: NatsMessage = {
+		subject,
+		sid,
+		reply,
+		data,
+		text: () => decodeText(data),
+		json: <T = unknown>(): T => decodeJson<T>(data)
+	};
+	if (reply !== undefined) {
+		msg.respond = (value: unknown) => conn.publish(reply, encoder.encode(JSON.stringify(value)));
+	}
+	return msg;
+}
+
+// utf-8 decode of a payload
+function decodeText(data: Uint8Array): string {
+	return decoder.decode(data);
+}
+
+// utf-8 decode then JSON.parse; a parse failure is a ProtocolError, never a raw SyntaxError
+function decodeJson<T>(data: Uint8Array): T {
+	try {
+		return JSON.parse(decoder.decode(data)) as T;
+	} catch (cause) {
+		throw new ProtocolError('nats message payload is not valid json', { protocol: PROTO, cause });
+	}
 }
 
 /**
@@ -138,6 +213,19 @@ export interface NatsConnection extends AsyncDisposable {
 	 */
 	publish(subject: string, data?: Uint8Array | string, opts?: { reply?: string }): Promise<void>;
 	/**
+	 * Publishes a value as JSON to a subject.
+	 *
+	 * The value is `JSON.stringify`-ed and encoded as UTF-8, then published with {@link publish}.
+	 *
+	 * @param subject - The subject to publish to.
+	 * @param value - The value to serialize and publish.
+	 * @param opts - Optional reply subject for request-reply.
+	 * @returns Resolves once the `PUB` frame is written.
+	 * @throws {ConnectionError} If the connection is closed.
+	 * @since 1.0.2
+	 */
+	publishJson(subject: string, value: unknown, opts?: { reply?: string }): Promise<void>;
+	/**
 	 * Subscribes to a subject, optionally as part of a queue group.
 	 *
 	 * @param subject - The subject (may contain `*` / `>` wildcards).
@@ -145,6 +233,23 @@ export interface NatsConnection extends AsyncDisposable {
 	 * @returns A subscription whose async iterator yields matching messages.
 	 */
 	subscribe(subject: string, opts?: { queue?: string }): NatsSubscription;
+	/**
+	 * Subscribes to a subject and yields each message with its payload parsed from JSON.
+	 *
+	 * A thin JSON layer over {@link subscribe}: each delivered message's payload is UTF-8 decoded
+	 * and `JSON.parse`-d. Iterate the result with `for await`. It is an `AsyncDisposable`, so
+	 * `await using` unsubscribes automatically.
+	 *
+	 * @typeParam T - The expected shape of each decoded value.
+	 * @param subject - The subject (may contain `*` / `>` wildcards).
+	 * @param opts - Optional queue group name for load-balanced delivery.
+	 * @returns An async iterable of `{ subject, reply?, value }`, also an `AsyncDisposable`.
+	 * @since 1.0.2
+	 */
+	subscribeJson<T = unknown>(
+		subject: string,
+		opts?: { queue?: string }
+	): AsyncIterable<NatsJsonMessage<T>> & AsyncDisposable;
 	/**
 	 * Sends a request and waits for the first reply on a private inbox.
 	 *
@@ -160,6 +265,27 @@ export interface NatsConnection extends AsyncDisposable {
 		data?: Uint8Array | string,
 		opts?: { timeoutMs?: number }
 	): Promise<NatsMessage>;
+	/**
+	 * Sends a JSON request and parses the reply payload as JSON.
+	 *
+	 * Serializes `value` with `JSON.stringify`, sends it via {@link request}, then UTF-8 decodes
+	 * and `JSON.parse`s the reply.
+	 *
+	 * @typeParam T - The expected shape of the decoded reply.
+	 * @param subject - The subject to send the request to.
+	 * @param value - The request value to serialize.
+	 * @param opts - Optional per-request timeout (defaults to 2000ms).
+	 * @returns The parsed reply value.
+	 * @throws {TimeoutError} If no reply arrives before the deadline.
+	 * @throws {ConnectionError} If the connection is closed.
+	 * @throws {ProtocolError} If the reply payload is not valid JSON.
+	 * @since 1.0.2
+	 */
+	requestJson<T = unknown>(
+		subject: string,
+		value: unknown,
+		opts?: { timeoutMs?: number }
+	): Promise<T>;
 	/**
 	 * Returns a {@link JetStreamManager} bound to this connection for durable streaming.
 	 *
@@ -346,7 +472,7 @@ class NatsConnectionImpl implements NatsConnection {
 		const data = await this.#reader.readN(nBytes);
 		await this.#reader.readN(2); // trailing CRLF
 		const sub = this.#subs.get(sid);
-		if (sub) sub.deliver({ subject, sid, reply, data });
+		if (sub) sub.deliver(makeMessage(this, subject, sid, reply, data));
 	}
 
 	#endAll(): void {
@@ -377,6 +503,10 @@ class NatsConnectionImpl implements NatsConnection {
 		await this.#writer.write(frame);
 	}
 
+	publishJson(subject: string, value: unknown, opts?: { reply?: string }): Promise<void> {
+		return this.publish(subject, encoder.encode(JSON.stringify(value)), opts);
+	}
+
 	subscribe(subject: string, opts?: { queue?: string }): NatsSubscription {
 		this.#assertOpen();
 		const sid = String(++this.#sidCounter);
@@ -389,6 +519,21 @@ class NatsConnectionImpl implements NatsConnection {
 		// fire-and-forget the SUB write; ordering is preserved by the single writer
 		void this.#writer.write(encoder.encode(line));
 		return sub;
+	}
+
+	subscribeJson<T = unknown>(
+		subject: string,
+		opts?: { queue?: string }
+	): AsyncIterable<NatsJsonMessage<T>> & AsyncDisposable {
+		const sub = this.subscribe(subject, opts);
+		return {
+			async *[Symbol.asyncIterator](): AsyncIterator<NatsJsonMessage<T>> {
+				for await (const msg of sub) {
+					yield { subject: msg.subject, reply: msg.reply, value: decodeJson<T>(msg.data) };
+				}
+			},
+			[Symbol.asyncDispose]: () => sub.unsubscribe()
+		};
 	}
 
 	async #sendUnsub(sid: string): Promise<void> {
@@ -429,6 +574,15 @@ class NatsConnectionImpl implements NatsConnection {
 		} finally {
 			await sub.unsubscribe().catch(() => {});
 		}
+	}
+
+	async requestJson<T = unknown>(
+		subject: string,
+		value: unknown,
+		opts?: { timeoutMs?: number }
+	): Promise<T> {
+		const reply = await this.request(subject, encoder.encode(JSON.stringify(value)), opts);
+		return decodeJson<T>(reply.data);
 	}
 
 	jetstream(): JetStreamManager {
