@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { connect } from '../../src/mqtt/index';
 
 it('publishes and receives a QoS 1 message', async () => {
@@ -26,4 +26,33 @@ it('delivers across wildcard subscriptions', async () => {
 	await mqtt.publish('edge/room1/temp', '21');
 	const { value } = await it.next();
 	expect(new TextDecoder().decode(value!.payload)).toBe('21');
+});
+
+describe('json helpers', () => {
+	it('publishJson / subscribeJson round-trip a structured value (QoS 1)', async () => {
+		await using mqtt = await connect({
+			hostname: '127.0.0.1',
+			port: 1883,
+			clientId: 'edgeport-json'
+		});
+		const sub = mqtt.subscribeJson<{ temp: number }>('edge/json', { qos: 1 });
+		const it = sub[Symbol.asyncIterator]();
+		await mqtt.publishJson('edge/json', { temp: 21.5 }, { qos: 1 });
+		const { value } = await it.next();
+		expect(value!.value).toEqual({ temp: 21.5 });
+	});
+
+	it('message.json() / text() decode a delivered payload', async () => {
+		await using mqtt = await connect({
+			hostname: '127.0.0.1',
+			port: 1883,
+			clientId: 'edgeport-json2'
+		});
+		const sub = mqtt.subscribe('edge/json2', { qos: 1 });
+		const it = sub[Symbol.asyncIterator]();
+		await mqtt.publishJson('edge/json2', { ok: true }, { qos: 1 });
+		const { value } = await it.next();
+		expect(value!.text()).toBe('{"ok":true}');
+		expect(value!.json()).toEqual({ ok: true });
+	});
 });

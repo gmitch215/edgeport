@@ -32,6 +32,36 @@ it('rejects bad credentials with AuthError', async () => {
 	await expect(connect({ ...base, password: 'wrong' })).rejects.toBeTruthy();
 });
 
+describe('json helpers', () => {
+	it('publishJson / subscribeJson round-trip a structured value', async () => {
+		await using nc = await connect(base);
+		const sub = nc.subscribeJson<{ temp: number }>('readings');
+		const it = sub[Symbol.asyncIterator]();
+		await nc.publishJson('readings', { temp: 21.5 });
+		const { value } = await it.next();
+		expect(value!.value).toEqual({ temp: 21.5 });
+	});
+
+	it('requestJson + respond() complete a JSON request-reply', async () => {
+		await using nc = await connect(base);
+		const svc = nc.subscribe('svc.json');
+		void (async () => {
+			for await (const m of svc) {
+				await m.respond?.({ echoed: m.json() });
+				break;
+			}
+		})();
+		const reply = await nc.requestJson<{ echoed: unknown }>(
+			'svc.json',
+			{ ping: true },
+			{
+				timeoutMs: 3000
+			}
+		);
+		expect(reply).toEqual({ echoed: { ping: true } });
+	});
+});
+
 // JetStream under workerd we cannot kill the server, so a "failover"
 // is modeled as a CLIENT reconnect against the same server, re-binding the same durable.
 describe('jetstream', () => {

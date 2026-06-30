@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { connect } from '../../src/sftp/index';
 import { connect as sshConnect } from '../../src/ssh/index';
 
@@ -49,4 +49,68 @@ it('streams a larger file through createReadStream', async () => {
 	}
 	expect(total).toBe(big.length);
 	await sftp.remove(path);
+});
+
+describe('sftp convenience helpers', () => {
+	const tag = Math.floor(Date.now()).toString(36);
+
+	it('exists reflects presence and absence', async () => {
+		await using sftp = await connect(base);
+		const path = `/config/edgeport-exists-${tag}.txt`;
+		expect(await sftp.exists(path)).toBe(false);
+		await sftp.writeText(path, 'present\n');
+		expect(await sftp.exists(path)).toBe(true);
+		await sftp.remove(path);
+		expect(await sftp.exists(path)).toBe(false);
+	});
+
+	it('ensureDir creates nested directories and is idempotent', async () => {
+		await using sftp = await connect(base);
+		const root = `/config/edgeport-tree-${tag}`;
+		const nested = `${root}/a/b/c`;
+		await sftp.ensureDir(nested);
+		expect((await sftp.stat(nested)).isDirectory).toBe(true);
+		await sftp.ensureDir(nested); // second call must not throw
+		await sftp.removeAll(root);
+		expect(await sftp.exists(root)).toBe(false);
+	});
+
+	it('round-trips text and JSON', async () => {
+		await using sftp = await connect(base);
+		const textPath = `/config/edgeport-text-${tag}.txt`;
+		await sftp.writeText(textPath, 'hello edgeport\n');
+		expect(await sftp.readText(textPath)).toBe('hello edgeport\n');
+
+		const jsonPath = `/config/edgeport-json-${tag}.json`;
+		const value = { name: 'edge', nested: { n: 1 }, list: [1, 2, 3] };
+		await sftp.writeJson(jsonPath, value, { space: 2 });
+		expect(await sftp.readJson<typeof value>(jsonPath)).toEqual(value);
+
+		await sftp.removeMany([textPath, jsonPath]);
+		expect(await sftp.exists(textPath)).toBe(false);
+		expect(await sftp.exists(jsonPath)).toBe(false);
+	});
+
+	it('chmod changes the permission bits', async () => {
+		await using sftp = await connect(base);
+		const path = `/config/edgeport-chmod-${tag}.sh`;
+		await sftp.writeText(path, '#!/bin/sh\necho hi\n');
+		await sftp.chmod(path, 0o755);
+		expect((await sftp.stat(path)).permissions! & 0o777).toBe(0o755);
+		await sftp.remove(path);
+	});
+
+	it('removeAll recursively clears a populated tree, removeMany tolerates missing', async () => {
+		await using sftp = await connect(base);
+		const root = `/config/edgeport-rm-${tag}`;
+		await sftp.ensureDir(`${root}/sub`);
+		await sftp.writeText(`${root}/a.txt`, 'a');
+		await sftp.writeText(`${root}/sub/b.txt`, 'b');
+
+		await sftp.removeAll(root);
+		expect(await sftp.exists(root)).toBe(false);
+
+		// idempotent removeMany over now-missing files
+		await sftp.removeMany([`${root}/a.txt`, `${root}/sub/b.txt`], { ignoreMissing: true });
+	});
 });
