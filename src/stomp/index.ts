@@ -27,8 +27,18 @@ const PROTO = 'stomp';
 const ACCEPT_VERSION = '1.2';
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 const NUL = 0x00;
 const NUL_DELIM = new Uint8Array([NUL]);
+
+// utf-8 decode then JSON.parse; a parse failure is a ProtocolError, never a raw SyntaxError
+function decodeJson<T>(data: Uint8Array): T {
+	try {
+		return JSON.parse(decoder.decode(data)) as T;
+	} catch (cause) {
+		throw new ProtocolError('stomp message body is not valid json', { protocol: PROTO, cause });
+	}
+}
 
 /**
  * A single decoded STOMP frame: a command, its headers, and a raw body.
@@ -263,6 +273,22 @@ export interface StompMessage {
 	ack?(): Promise<void>;
 	/** Negatively acknowledges the message (`client` / `client-individual` modes only). */
 	nack?(): Promise<void>;
+	/**
+	 * Decodes the body as UTF-8 text.
+	 *
+	 * @returns The body as a string.
+	 * @since 1.0.2
+	 */
+	text(): string;
+	/**
+	 * Decodes the body as UTF-8 then parses it as JSON.
+	 *
+	 * @typeParam T - The expected shape of the decoded value.
+	 * @returns The parsed value.
+	 * @throws {ProtocolError} If the body is not valid JSON.
+	 * @since 1.0.2
+	 */
+	json<T = unknown>(): T;
 }
 
 /**
@@ -331,6 +357,24 @@ export interface StompSession extends AsyncDisposable {
 		destination: string,
 		body: Uint8Array | string,
 		opts?: { headers?: Record<string, string>; contentType?: string }
+	): Promise<void>;
+	/**
+	 * Sends a value as a JSON message to a destination.
+	 *
+	 * Serializes `value` with `JSON.stringify`, sends it via {@link send} with a
+	 * `content-type: application/json` header (overriding any `contentType` in `opts`).
+	 *
+	 * @param destination - The destination to send to (e.g. `/queue/a`).
+	 * @param value - The value to serialize and send.
+	 * @param opts - Optional extra headers (a `contentType` here is ignored in favour of JSON).
+	 * @returns Resolves once the `SEND` frame is written.
+	 * @throws {ConnectionError} If the session is closed.
+	 * @since 1.0.2
+	 */
+	sendJson(
+		destination: string,
+		value: unknown,
+		opts?: { headers?: Record<string, string> }
 	): Promise<void>;
 	/**
 	 * Subscribes to a destination.
@@ -498,11 +542,14 @@ class StompSessionImpl implements StompSession {
 		const sub = subId !== undefined ? this.#subs.get(subId) : undefined;
 		if (!sub) return; // message for a subscription we no longer track
 		const ackId = frame.headers['ack'];
+		const body = frame.body;
 		const msg: StompMessage = {
 			destination: frame.headers['destination'] ?? sub.destination,
-			body: frame.body,
+			body,
 			headers: frame.headers,
-			messageId: frame.headers['message-id'] ?? ''
+			messageId: frame.headers['message-id'] ?? '',
+			text: () => decoder.decode(body),
+			json: <T = unknown>(): T => decodeJson<T>(body)
 		};
 		if (ackId !== undefined) {
 			msg.ack = () => this.#sendAck('ACK', ackId);
@@ -536,6 +583,17 @@ class StompSessionImpl implements StompSession {
 		const headers: Record<string, string> = { destination, ...opts?.headers };
 		if (opts?.contentType !== undefined) headers['content-type'] = opts.contentType;
 		await this.#writer.write(encodeFrame('SEND', headers, payload));
+	}
+
+	sendJson(
+		destination: string,
+		value: unknown,
+		opts?: { headers?: Record<string, string> }
+	): Promise<void> {
+		return this.send(destination, JSON.stringify(value), {
+			contentType: 'application/json',
+			headers: opts?.headers
+		});
 	}
 
 	subscribe(
