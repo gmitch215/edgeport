@@ -1,6 +1,3 @@
-// mock-driven unit tests for the syslog client
-// syslog over tcp is one-way, so the server only reads; client call and server-read script
-// run together under Promise.all so the in-memory channel interleaves correctly
 import { describe, expect, it } from 'vitest';
 import { ProtocolError } from '../../src/core';
 import {
@@ -269,5 +266,48 @@ describe('one-shot send()', () => {
 		// type/surface assertion so the public one-shot helper is covered without a real socket
 		expect(typeof send).toBe('function');
 		expect(typeof connect).toBe('function');
+	});
+});
+
+// each shortcut and the severity its PRI must carry (facility user=1 -> PRI = 8 + severity)
+const severityCases: Array<{
+	method: 'info' | 'notice' | 'warn' | 'error' | 'debug';
+	severity: Severity;
+}> = [
+	{ method: 'info', severity: Severity.info },
+	{ method: 'notice', severity: Severity.notice },
+	{ method: 'warn', severity: Severity.warning },
+	{ method: 'error', severity: Severity.error },
+	{ method: 'debug', severity: Severity.debug }
+];
+
+describe('syslog severity shortcuts', () => {
+	for (const { method, severity } of severityCases) {
+		it(`${method}() delegates to log() with Severity.${Severity[severity]}`, async () => {
+			const { socket, server } = mockConnection();
+			const clientFlow = async () => {
+				const session = _sessionFromSocket(socket, { hostname: 'h', framing: 'lf' });
+				await session[method]('hello', { timestamp: '2025-01-01T00:00:00Z' });
+			};
+			const [, body] = await Promise.all([clientFlow(), readLfFrame(server)]);
+			// facility user(1) * 8 + severity
+			expect(body).toBe(`<${8 + severity}>1 2025-01-01T00:00:00Z - - - - - hello`);
+		});
+	}
+
+	it('forwards extra fields (facility, structured data, overrides) through opts', async () => {
+		const { socket, server } = mockConnection();
+		const clientFlow = async () => {
+			const session = _sessionFromSocket(socket, { hostname: 'h', framing: 'lf' });
+			await session.warn('disk almost full', {
+				facility: 'local0',
+				appName: 'api',
+				timestamp: '2025-01-01T00:00:00Z',
+				structuredData: [{ id: 'meta@1', params: { pct: '92' } }]
+			});
+		};
+		const [, body] = await Promise.all([clientFlow(), readLfFrame(server)]);
+		// local0(16) * 8 + warning(4) = 132
+		expect(body).toBe('<132>1 2025-01-01T00:00:00Z - api - - [meta@1 pct="92"] disk almost full');
 	});
 });

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { AuthError, ProtocolError } from '../../src/core/errors';
-import { _connectOverSocket, type MqttScheduler, type MqttSession } from '../../src/mqtt';
+import {
+	_connectOverSocket,
+	type MqttMessage,
+	type MqttScheduler,
+	type MqttSession
+} from '../../src/mqtt';
 import {
 	decodePacket,
 	decodeRemainingLength,
@@ -63,6 +68,18 @@ async function brokerHandshake(server: MockServerEnd): Promise<DecodedPacket> {
 	const connect = await readPacketFromServer(server);
 	await server.write(connack(0));
 	return connect;
+}
+
+// connects through a successful handshake and returns the ready session + server end
+async function connected(): Promise<{ session: MqttSession; server: MockServerEnd }> {
+	const { socket, server } = mockConnection();
+	const session = (
+		await Promise.all([
+			_connectOverSocket(socket, { hostname: 'broker.test', tls: 'off', keepAliveSeconds: 0 }),
+			brokerHandshake(server)
+		])
+	)[0];
+	return { session, server };
 }
 
 describe('mqtt remaining-length varint', () => {
@@ -362,6 +379,83 @@ describe('mqtt keep-alive', () => {
 		})();
 		fired!(); // drive the keep-alive tick
 		await pingScript;
+
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+});
+
+describe('mqtt publishJson', () => {
+	it('serializes the value to JSON and PUBLISHes it as UTF-8 (qos0)', async () => {
+		const { session, server } = await connected();
+		const value = { temp: 21.5 };
+		const json = JSON.stringify(value);
+
+		const pubScript = (async () => {
+			const pkt = await readPacketFromServer(server);
+			if (pkt.type !== PacketType.PUBLISH) throw new Error('wrong type');
+			expect(pkt.topic).toBe('sensors/1');
+			expect(dec.decode(pkt.payload)).toBe(json);
+			expect(pkt.qos).toBe(0);
+		})();
+		await Promise.all([session.publishJson('sensors/1', value), pubScript]);
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+});
+
+describe('mqtt message json() / text()', () => {
+	it('decodes a delivered payload as text and as JSON', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribe('sensors/+', { qos: 0 });
+
+		const subPkt = await readPacketFromServer(server);
+		if (subPkt.type !== PacketType.SUBSCRIBE) throw new Error('wrong type');
+		await server.write(suback(subPkt.packetId, [0]));
+		await server.write(
+			encodePublish({ topic: 'sensors/9', payload: enc.encode('{"v":42}'), qos: 0 })
+		);
+
+		const iter = sub[Symbol.asyncIterator]();
+		const msg: MqttMessage = (await iter.next()).value;
+		expect(msg.text()).toBe('{"v":42}');
+		expect(msg.json<{ v: number }>()).toEqual({ v: 42 });
+
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+
+	it('json() throws ProtocolError on a non-JSON payload', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribe('raw', { qos: 0 });
+
+		const subPkt = await readPacketFromServer(server);
+		if (subPkt.type !== PacketType.SUBSCRIBE) throw new Error('wrong type');
+		await server.write(suback(subPkt.packetId, [0]));
+		await server.write(encodePublish({ topic: 'raw', payload: enc.encode('<<bad>>'), qos: 0 }));
+
+		const iter = sub[Symbol.asyncIterator]();
+		const msg: MqttMessage = (await iter.next()).value;
+		expect(msg.text()).toBe('<<bad>>');
+		expect(() => msg.json()).toThrow(ProtocolError);
+
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+});
+
+describe('mqtt subscribeJson', () => {
+	it('yields { topic, value } with the payload parsed', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribeJson<{ id: number }>('sensors/+', { qos: 0 });
+
+		const subPkt = await readPacketFromServer(server);
+		if (subPkt.type !== PacketType.SUBSCRIBE) throw new Error('wrong type');
+		expect(subPkt.subscriptions[0]!.topicFilter).toBe('sensors/+');
+		await server.write(suback(subPkt.packetId, [0]));
+		await server.write(
+			encodePublish({ topic: 'sensors/3', payload: enc.encode('{"id":3}'), qos: 0 })
+		);
+
+		const iter = sub[Symbol.asyncIterator]();
+		const { value } = await iter.next();
+		expect(value).toEqual({ topic: 'sensors/3', value: { id: 3 } });
 
 		await Promise.all([session.close(), readPacketFromServer(server)]);
 	});

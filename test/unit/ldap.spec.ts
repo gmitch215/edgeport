@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { AuthError } from '../../src/core/errors';
-import { _sessionOverSocket } from '../../src/ldap';
+import {
+	_sessionOverSocket,
+	and,
+	approx,
+	contains,
+	eq,
+	escapeDN,
+	escapeFilterValue,
+	filters,
+	gte,
+	lte,
+	not,
+	or,
+	present,
+	substring
+} from '../../src/ldap';
 import {
 	BerReader,
 	BerWriter,
@@ -14,6 +29,35 @@ import { mockConnection } from '../mock-socket';
 
 const w = new BerWriter();
 const dec = (b: Uint8Array) => new TextDecoder().decode(b);
+
+// shallow structural view of an encoded filter: its outer tag + a reader over its content
+function decode(f: Filter): { tag: number; reader: BerReader } {
+	const el = new BerReader(encodeFilter(f)).readElement();
+	return { tag: el.tag, reader: el.reader };
+}
+
+// reads attribute + value out of an AttributeValueAssertion-shaped filter
+function ava(f: Filter): { attr: string; value: string } {
+	const { reader } = decode(f);
+	return { attr: dec(reader.octetString()), value: dec(reader.octetString()) };
+}
+
+// reads the substring pieces: { initial?, any[], final? } out of a substrings filter
+function subPieces(f: Filter): { attr: string; initial?: string; any: string[]; final?: string } {
+	const { reader } = decode(f);
+	const attr = dec(reader.octetString());
+	const seq = reader.sequence();
+	const out: { attr: string; initial?: string; any: string[]; final?: string } = { attr, any: [] };
+	while (seq.hasMore()) {
+		const piece = seq.readElement();
+		const tagNum = piece.tag & 0x1f;
+		const text = dec(piece.content);
+		if (tagNum === 0) out.initial = text;
+		else if (tagNum === 1) out.any.push(text);
+		else if (tagNum === 2) out.final = text;
+	}
+	return out;
+}
 
 // op tags used to script server responses
 const OP_BIND_RESPONSE = 1;
@@ -310,5 +354,166 @@ describe('search', () => {
 			script
 		]);
 		expect(entries).toEqual([]);
+	});
+});
+
+describe('filter builders -> RFC 4511 BER', () => {
+	it('eq produces an equalityMatch (tag 0xA3) with attr + value', () => {
+		const f = eq('uid', 'jdoe');
+		expect(f).toEqual({ type: 'equalityMatch', attribute: 'uid', value: 'jdoe' });
+		const { tag } = decode(f);
+		expect(tag).toBe(contextTag(3, true));
+		expect(ava(f)).toEqual({ attr: 'uid', value: 'jdoe' });
+	});
+
+	it('present produces a primitive present (tag 0x87) carrying the bare attribute', () => {
+		const f = present('mail');
+		expect(f).toEqual({ type: 'present', attribute: 'mail' });
+		const el = new BerReader(encodeFilter(f)).readElement();
+		expect(el.tag).toBe(contextTag(7, false));
+		expect(dec(el.content)).toBe('mail');
+	});
+
+	it('gte / lte / approx map to tags 0xA5 / 0xA6 / 0xA8', () => {
+		expect(decode(gte('age', '18')).tag).toBe(contextTag(5, true));
+		expect(decode(lte('age', '65')).tag).toBe(contextTag(6, true));
+		expect(decode(approx('sn', 'jonsen')).tag).toBe(contextTag(8, true));
+		expect(ava(gte('age', '18'))).toEqual({ attr: 'age', value: '18' });
+	});
+
+	it('substring renders initial/any/final pieces (tag 0xA4)', () => {
+		const f = substring('cn', { initial: 'a', any: ['b', 'c'], final: 'd' });
+		expect(decode(f).tag).toBe(contextTag(4, true));
+		expect(subPieces(f)).toEqual({ attr: 'cn', initial: 'a', any: ['b', 'c'], final: 'd' });
+	});
+
+	it('substring with only a final anchor omits initial/any', () => {
+		const f = substring('mail', { final: '@example.org' });
+		expect(subPieces(f)).toEqual({ attr: 'mail', any: [], final: '@example.org' });
+	});
+
+	it('substring with no pieces throws RangeError', () => {
+		expect(() => substring('cn', {})).toThrow(RangeError);
+		expect(() => substring('cn', { any: [''] })).toThrow(RangeError);
+	});
+
+	it('contains renders (attr=*text*) as a single any piece', () => {
+		const f = contains('cn', 'smith');
+		expect(f).toEqual({ type: 'substrings', attribute: 'cn', any: ['smith'] });
+		expect(subPieces(f)).toEqual({ attr: 'cn', any: ['smith'] });
+	});
+});
+
+describe('builder nesting', () => {
+	it('and nests members under a 0xA0 constructed tag', () => {
+		const f = and(eq('objectClass', 'person'), present('uid'));
+		expect(f.type).toBe('and');
+		expect(encodeFilter(f)[0]).toBe(contextTag(0, true));
+		const { reader } = decode(f);
+		const first = reader.readElement();
+		expect(first.tag).toBe(contextTag(3, true)); // equalityMatch
+		const second = reader.readElement();
+		expect(second.tag).toBe(contextTag(7, false)); // present
+	});
+
+	it('or nests members under a 0xA1 constructed tag', () => {
+		const f = or(eq('uid', 'alice'), eq('uid', 'bob'));
+		expect(encodeFilter(f)[0]).toBe(contextTag(1, true));
+		expect(f.filters).toHaveLength(2);
+	});
+
+	it('not wraps a single member under a 0xA2 constructed tag', () => {
+		const f = not(eq('disabled', 'TRUE'));
+		expect(f).toEqual({
+			type: 'not',
+			filter: { type: 'equalityMatch', attribute: 'disabled', value: 'TRUE' }
+		});
+		expect(encodeFilter(f)[0]).toBe(contextTag(2, true));
+		const { reader } = decode(f);
+		expect(reader.readElement().tag).toBe(contextTag(3, true));
+	});
+
+	it('composes deep and/or/not trees', () => {
+		const f = and(
+			eq('objectClass', 'person'),
+			or(eq('uid', 'a'), eq('uid', 'b')),
+			not(present('disabled'))
+		);
+		const { reader } = decode(f);
+		expect(reader.readElement().tag).toBe(contextTag(3, true)); // eq
+		expect(reader.readElement().tag).toBe(contextTag(1, true)); // or
+		expect(reader.readElement().tag).toBe(contextTag(2, true)); // not
+	});
+});
+
+describe('injection safety (structured values carried literally)', () => {
+	it('eq does not let filter metacharacters leak into the wire form', () => {
+		// raw metachars are bytes in the value, not parsed as wildcards/grouping
+		const f = eq('uid', 'a*b(c)');
+		expect(ava(f)).toEqual({ attr: 'uid', value: 'a*b(c)' });
+		// the encoded value octets are exactly the literal string, no \xx escaping applied
+		const { reader } = decode(f);
+		reader.octetString(); // attr
+		expect(dec(reader.octetString())).toBe('a*b(c)');
+	});
+
+	it('contains carries a wildcard-looking substring literally', () => {
+		const f = contains('cn', 'a*b');
+		expect(subPieces(f)).toEqual({ attr: 'cn', any: ['a*b'] });
+	});
+});
+
+describe('escapeFilterValue (RFC 4515 assertion value)', () => {
+	it('escapes the metacharacter set to \\xx hex', () => {
+		expect(escapeFilterValue('*')).toBe('\\2a');
+		expect(escapeFilterValue('(')).toBe('\\28');
+		expect(escapeFilterValue(')')).toBe('\\29');
+		expect(escapeFilterValue('\\')).toBe('\\5c');
+		expect(escapeFilterValue('\0')).toBe('\\00');
+	});
+
+	it('escapes a mixed value and leaves ordinary text alone', () => {
+		expect(escapeFilterValue('a*b(c)')).toBe('a\\2ab\\28c\\29');
+		expect(escapeFilterValue('John Doe')).toBe('John Doe');
+	});
+
+	it('produces a string with no raw metachars left', () => {
+		const escaped = escapeFilterValue('x)(uid=*)');
+		expect(escaped).not.toMatch(/[*()]/);
+	});
+});
+
+describe('escapeDN (RFC 4514 attribute value)', () => {
+	it('escapes the special set anywhere in the value', () => {
+		expect(escapeDN('a,b')).toBe('a\\,b');
+		expect(escapeDN('a+b')).toBe('a\\+b');
+		expect(escapeDN('a"b')).toBe('a\\"b');
+		expect(escapeDN('a\\b')).toBe('a\\\\b');
+		expect(escapeDN('a<b')).toBe('a\\<b');
+		expect(escapeDN('a>b')).toBe('a\\>b');
+		expect(escapeDN('a;b')).toBe('a\\;b');
+		expect(escapeDN('a=b')).toBe('a\\=b');
+	});
+
+	it('escapes a leading #, leading and trailing space', () => {
+		expect(escapeDN('#abc')).toBe('\\#abc');
+		expect(escapeDN(' abc')).toBe('\\ abc');
+		expect(escapeDN('abc ')).toBe('abc\\ ');
+		// inner spaces and inner # stay untouched
+		expect(escapeDN('a # b')).toBe('a # b');
+	});
+
+	it('escapes a real comma-bearing CN component', () => {
+		expect(escapeDN('Doe, John')).toBe('Doe\\, John');
+	});
+});
+
+describe('filters namespace', () => {
+	it('exposes the same builders as the named exports', () => {
+		expect(filters.eq).toBe(eq);
+		expect(filters.and).toBe(and);
+		expect(filters.escapeFilterValue).toBe(escapeFilterValue);
+		const f = filters.and(filters.eq('objectClass', 'person'), filters.present('uid'));
+		expect(encodeFilter(f)[0]).toBe(contextTag(0, true));
 	});
 });

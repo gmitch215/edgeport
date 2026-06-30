@@ -77,7 +77,8 @@ describe('WsConnection iteration', () => {
 		for await (const msg of conn) got.push(msg);
 
 		expect(got).toHaveLength(3);
-		expect(got[0]).toEqual({ type: 'text', data: 'first' });
+		// text messages also carry a json() accessor, so match the data fields, not exact shape
+		expect(got[0]).toMatchObject({ type: 'text', data: 'first' });
 		expect(got[1]?.type).toBe('binary');
 		expect(new TextDecoder().decode((got[1] as { data: Uint8Array }).data)).toBe('second');
 		expect(got[2]?.type).toBe('binary');
@@ -91,7 +92,10 @@ describe('WsConnection iteration', () => {
 
 		const pending = it.next();
 		fake.emitMessage('late');
-		await expect(pending).resolves.toEqual({ done: false, value: { type: 'text', data: 'late' } });
+		await expect(pending).resolves.toMatchObject({
+			done: false,
+			value: { type: 'text', data: 'late' }
+		});
 	});
 
 	it('terminates the iterator on close', async () => {
@@ -212,5 +216,44 @@ describe('error vocabulary', () => {
 		// guards that the ws module imports from the shared core taxonomy
 		expect(new ConnectionError('x')).toBeInstanceOf(Error);
 		expect(new ProtocolError('x')).toBeInstanceOf(Error);
+	});
+});
+
+describe('WsConnection sendJson', () => {
+	it('JSON.stringifies the value and sends it as a text frame', () => {
+		const fake = new FakeWebSocket();
+		const conn = _wrap(fake);
+		conn.sendJson({ a: 1, b: [2, 3] });
+		expect(fake.sent).toEqual(['{"a":1,"b":[2,3]}']);
+	});
+});
+
+describe('WsMessage json() on the text variant', () => {
+	it('parses a text frame as JSON', async () => {
+		const fake = new FakeWebSocket();
+		const conn = _wrap(fake);
+		fake.emitMessage('{"ok":true,"n":5}');
+		fake.emitClose(1000, '');
+
+		const got: WsMessage[] = [];
+		for await (const msg of conn) got.push(msg);
+		expect(got).toHaveLength(1);
+		const msg = got[0]!;
+		expect(msg.type).toBe('text');
+		if (msg.type !== 'text') throw new Error('wrong type');
+		expect(msg.json<{ ok: boolean; n: number }>()).toEqual({ ok: true, n: 5 });
+	});
+
+	it('json() throws ProtocolError on non-JSON text', async () => {
+		const fake = new FakeWebSocket();
+		const conn = _wrap(fake);
+		fake.emitMessage('not json');
+		fake.emitClose(1000, '');
+
+		const it = conn[Symbol.asyncIterator]();
+		const { value } = await it.next();
+		if (value!.type !== 'text') throw new Error('wrong type');
+		expect(() => value!.json()).toThrow(ProtocolError);
+		expect(value!.data).toBe('not json');
 	});
 });

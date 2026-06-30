@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { AuthError, ProtocolError } from '../../src/core/errors';
-import { _sessionOverSocket, parseEpsv, parseListLine, parsePasv, parseReply } from '../../src/ftp';
+import {
+	_sessionOverSocket,
+	parseEpsv,
+	parseListLine,
+	parseMdtm,
+	parsePasv,
+	parseReply
+} from '../../src/ftp';
 import { mockConnection, type MockServerEnd } from '../mock-socket';
 
 describe('parseReply', () => {
@@ -427,6 +434,240 @@ describe('ftp TYPE / REST sequencing', () => {
 					script
 				])
 			).rejects.toBeTruthy();
+		});
+	});
+});
+
+describe('parseMdtm', () => {
+	it('parses a 14-digit timestamp as UTC', () => {
+		const d = parseMdtm('20260628120000');
+		expect(d.toISOString()).toBe('2026-06-28T12:00:00.000Z');
+	});
+
+	it('parses a fractional-seconds suffix to milliseconds', () => {
+		const d = parseMdtm('20260628120000.250');
+		expect(d.toISOString()).toBe('2026-06-28T12:00:00.250Z');
+	});
+
+	it('tolerates surrounding whitespace', () => {
+		const d = parseMdtm('  19991231235959  ');
+		expect(d.toISOString()).toBe('1999-12-31T23:59:59.000Z');
+	});
+
+	it('throws ProtocolError on a non-timestamp reply', () => {
+		expect(() => parseMdtm('not-a-time')).toThrow(ProtocolError);
+	});
+});
+
+describe('ftp mtime', () => {
+	it('sends MDTM and parses the 213 reply as a UTC Date', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('MDTM /pub/readme.txt');
+				await server.writeLine('213 20260628120000');
+			})();
+			const [when] = await Promise.all([session.mtime('/pub/readme.txt'), script]);
+			expect(when.toISOString()).toBe('2026-06-28T12:00:00.000Z');
+		});
+	});
+
+	it('maps a 550 MDTM failure to ProtocolError', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('MDTM /nope');
+				await server.writeLine('550 No such file');
+			})();
+			await expect(Promise.all([session.mtime('/nope'), script])).rejects.toBeInstanceOf(
+				ProtocolError
+			);
+		});
+	});
+});
+
+describe('ftp exists', () => {
+	it('maps a 213 SIZE reply to true', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('SIZE /pub/readme.txt');
+				await server.writeLine('213 1234');
+			})();
+			const [ok] = await Promise.all([session.exists('/pub/readme.txt'), script]);
+			expect(ok).toBe(true);
+		});
+	});
+
+	it('maps a 550 SIZE reply to false', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('SIZE /missing.txt');
+				await server.writeLine('550 Not found');
+			})();
+			const [ok] = await Promise.all([session.exists('/missing.txt'), script]);
+			expect(ok).toBe(false);
+		});
+	});
+});
+
+describe('ftp ensureDir', () => {
+	it('issues MKD per cumulative absolute segment and swallows 550', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('MKD /incoming');
+				await server.writeLine('550 already exists'); // swallowed
+				expect(await server.readLine()).toBe('MKD /incoming/2026');
+				await server.writeLine('257 "/incoming/2026" created');
+				expect(await server.readLine()).toBe('MKD /incoming/2026/reports');
+				await server.writeLine('257 "/incoming/2026/reports" created');
+			})();
+			await Promise.all([session.ensureDir('/incoming/2026/reports'), script]);
+		});
+	});
+
+	it('builds relative paths under the working directory', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('MKD ./a');
+				await server.writeLine('257 "/cwd/a" created');
+				expect(await server.readLine()).toBe('MKD ./a/b');
+				await server.writeLine('257 "/cwd/a/b" created');
+			})();
+			await Promise.all([session.ensureDir('a/b'), script]);
+		});
+	});
+
+	it('rejects with ProtocolError when a segment fails for a non-550 reason', async () => {
+		await withSession(async (session, server) => {
+			const script = (async () => {
+				expect(await server.readLine()).toBe('MKD /x');
+				await server.writeLine('500 Syntax error');
+			})();
+			await expect(Promise.all([session.ensureDir('/x'), script])).rejects.toBeInstanceOf(
+				ProtocolError
+			);
+		});
+	});
+});
+
+describe('ftp text/json round-trips', () => {
+	// these stub get/put on the live session instance so the encode/decode logic is exercised
+	// without a data connection (unit runs without a live passive data server)
+	it('putText encodes UTF-8 and forwards options to put', async () => {
+		await withSession(async (session) => {
+			let captured: { path: string; data: Uint8Array; opts?: unknown } | undefined;
+			session.put = async (path, data, opts) => {
+				captured = { path, data, opts };
+			};
+			await session.putText('/note.txt', 'hello world\n', { type: 'ascii' });
+			expect(captured!.path).toBe('/note.txt');
+			expect(new TextDecoder().decode(captured!.data)).toBe('hello world\n');
+			expect(captured!.opts).toEqual({ type: 'ascii' });
+		});
+	});
+
+	it('getText decodes the bytes get returns as UTF-8', async () => {
+		await withSession(async (session) => {
+			session.get = async () => new TextEncoder().encode('on the wire');
+			expect(await session.getText('/note.txt')).toBe('on the wire');
+		});
+	});
+
+	it('getText/putText round-trip through a fake store', async () => {
+		await withSession(async (session) => {
+			let stored: Uint8Array = new Uint8Array();
+			session.put = async (_path, data) => {
+				stored = data;
+			};
+			session.get = async () => stored;
+			await session.putText('/note.txt', 'utf-8 text: cafe');
+			expect(await session.getText('/note.txt')).toBe('utf-8 text: cafe');
+		});
+	});
+
+	it('putJson serializes (honoring space) and getJson parses it back', async () => {
+		await withSession(async (session) => {
+			let stored: Uint8Array = new Uint8Array();
+			session.put = async (_path, data) => {
+				stored = data;
+			};
+			session.get = async () => stored;
+			const value = { name: 'edge', nested: { n: 1 } };
+			await session.putJson('/config.json', value, { space: 2 });
+			// space:2 must produce indented JSON
+			expect(new TextDecoder().decode(stored)).toBe(JSON.stringify(value, null, 2));
+			expect(await session.getJson<typeof value>('/config.json')).toEqual(value);
+		});
+	});
+
+	it('getJson surfaces a SyntaxError on invalid JSON', async () => {
+		await withSession(async (session) => {
+			session.get = async () => new TextEncoder().encode('{ not json');
+			await expect(session.getJson('/bad.json')).rejects.toBeInstanceOf(SyntaxError);
+		});
+	});
+});
+
+describe('ftp removeAll', () => {
+	it('rejects the server root', async () => {
+		await withSession(async (session) => {
+			await expect(session.removeAll('/')).rejects.toBeInstanceOf(ProtocolError);
+		});
+	});
+
+	it('rejects an empty path', async () => {
+		await withSession(async (session) => {
+			await expect(session.removeAll('   ')).rejects.toBeInstanceOf(ProtocolError);
+		});
+	});
+
+	it('walks a small tree depth-first: files via DELE, dirs via RMD', async () => {
+		// stub list so removeAll walks a fixed tree without needing a data connection:
+		//   /top
+		//     a.txt        (file)
+		//     sub/         (dir)
+		//       b.txt      (file)
+		await withSession(async (session) => {
+			const trees: Record<string, { name: string; isDirectory: boolean }[]> = {
+				'/top': [
+					{ name: 'a.txt', isDirectory: false },
+					{ name: 'sub', isDirectory: true }
+				],
+				'/top/sub': [{ name: 'b.txt', isDirectory: false }]
+			};
+			session.list = async (path?: string) =>
+				(trees[path!] ?? []).map((e) => ({ ...e, raw: e.name }));
+
+			const deletes: string[] = [];
+			const rmdirs: string[] = [];
+			session.delete = async (p: string) => {
+				deletes.push(p);
+			};
+			session.rmdir = async (p: string) => {
+				rmdirs.push(p);
+			};
+
+			await session.removeAll('/top');
+
+			// a.txt then recurse into sub: b.txt deleted, sub removed, finally top removed
+			expect(deletes).toEqual(['/top/a.txt', '/top/sub/b.txt']);
+			expect(rmdirs).toEqual(['/top/sub', '/top']);
+		});
+	});
+
+	it('skips . and .. listing entries', async () => {
+		await withSession(async (session) => {
+			session.list = async () =>
+				[
+					{ name: '.', isDirectory: true },
+					{ name: '..', isDirectory: true },
+					{ name: 'keep.txt', isDirectory: false }
+				].map((e) => ({ ...e, raw: e.name }));
+			const deletes: string[] = [];
+			session.delete = async (p: string) => {
+				deletes.push(p);
+			};
+			session.rmdir = async () => {};
+			await session.removeAll('/dir');
+			expect(deletes).toEqual(['/dir/keep.txt']);
 		});
 	});
 });

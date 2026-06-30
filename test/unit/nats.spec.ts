@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AuthError, ProtocolError } from '../../src/core/errors';
-import { _connectOverSocket, type NatsConnection } from '../../src/nats';
+import { _connectOverSocket, type NatsConnection, type NatsMessage } from '../../src/nats';
 import { isDeliveredMessage, parseApiResponse, parsePubAck } from '../../src/nats/jetstream';
 import { parseCreds, signNonce } from '../../src/nats/nkey';
 import { mockConnection, type MockServerEnd } from '../mock-socket';
@@ -37,6 +37,18 @@ async function sendMsg(
 	frame.set(body, 0);
 	frame.set(enc.encode('\r\n'), body.length);
 	await server.write(frame);
+}
+
+// opens a connection through the full handshake and returns the live conn + server end
+async function connected(): Promise<{ conn: NatsConnection; server: MockServerEnd }> {
+	const { socket, server } = mockConnection();
+	const conn = (
+		await Promise.all([
+			_connectOverSocket(socket, { hostname: 'nats.test', tls: 'off' }),
+			handshake(server)
+		])
+	)[0];
+	return { conn, server };
 }
 
 describe('nats handshake', () => {
@@ -374,3 +386,141 @@ function b64urlDecode(s: string): Uint8Array {
 	for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
 	return out;
 }
+
+describe('nats publishJson', () => {
+	it('serializes the value to JSON and PUBs it as UTF-8', async () => {
+		const { conn, server } = await connected();
+		const value = { temp: 21.5, unit: 'c' };
+		const json = JSON.stringify(value);
+
+		const pubScript = (async () => {
+			expect(await server.readLine()).toBe(`PUB readings ${enc.encode(json).length}`);
+			const payload = await server.readN(enc.encode(json).length);
+			expect(dec.decode(payload)).toBe(json);
+			expect(await server.readN(2)).toEqual(enc.encode('\r\n'));
+		})();
+		await Promise.all([conn.publishJson('readings', value), pubScript]);
+		await conn.close();
+	});
+});
+
+describe('nats message json() / text()', () => {
+	it('decodes a delivered payload as text and as JSON', async () => {
+		const { conn, server } = await connected();
+		const sub = conn.subscribe('events');
+		expect(await server.readLine()).toBe('SUB events 1');
+
+		await sendMsg(server, 'events', '1', '{"ok":true,"n":7}');
+		const iter = sub[Symbol.asyncIterator]();
+		const msg: NatsMessage = (await iter.next()).value;
+		expect(msg.text()).toBe('{"ok":true,"n":7}');
+		expect(msg.json<{ ok: boolean; n: number }>()).toEqual({ ok: true, n: 7 });
+
+		await conn.close();
+	});
+
+	it('json() throws ProtocolError on a non-JSON payload', async () => {
+		const { conn, server } = await connected();
+		const sub = conn.subscribe('events');
+		expect(await server.readLine()).toBe('SUB events 1');
+
+		await sendMsg(server, 'events', '1', 'not json');
+		const iter = sub[Symbol.asyncIterator]();
+		const msg: NatsMessage = (await iter.next()).value;
+		expect(() => msg.json()).toThrow(ProtocolError);
+		expect(msg.text()).toBe('not json');
+
+		await conn.close();
+	});
+});
+
+describe('nats subscribeJson', () => {
+	it('yields { subject, reply?, value } with the payload parsed', async () => {
+		const { conn, server } = await connected();
+		const sub = conn.subscribeJson<{ id: number }>('events.>');
+		expect(await server.readLine()).toBe('SUB events.> 1');
+
+		await sendMsg(server, 'events.a', '1', '{"id":1}');
+		await sendMsg(server, 'events.b', '1', '{"id":2}', 'reply.inbox');
+
+		const iter = sub[Symbol.asyncIterator]();
+		const a = await iter.next();
+		expect(a.value).toEqual({ subject: 'events.a', reply: undefined, value: { id: 1 } });
+		const b = await iter.next();
+		expect(b.value).toEqual({ subject: 'events.b', reply: 'reply.inbox', value: { id: 2 } });
+
+		await conn.close();
+	});
+});
+
+describe('nats message respond()', () => {
+	it('publishes a JSON reply to the message reply subject', async () => {
+		const { conn, server } = await connected();
+		const sub = conn.subscribe('svc.echo');
+		expect(await server.readLine()).toBe('SUB svc.echo 1');
+
+		await sendMsg(server, 'svc.echo', '1', '"ping"', 'reply.box');
+		const iter = sub[Symbol.asyncIterator]();
+		const { value } = await iter.next();
+		expect(typeof value!.respond).toBe('function');
+
+		const replyScript = (async () => {
+			const line = await server.readLine();
+			const parts = line.split(/\s+/);
+			expect(parts[0]).toBe('PUB');
+			expect(parts[1]).toBe('reply.box');
+			const len = Number(parts[2]);
+			expect(dec.decode(await server.readN(len))).toBe('{"pong":true}');
+			await server.readN(2); // CRLF
+		})();
+		await Promise.all([value!.respond!({ pong: true }), replyScript]);
+
+		await conn.close();
+	});
+
+	it('omits respond on a message with no reply subject', async () => {
+		const { conn, server } = await connected();
+		const sub = conn.subscribe('events');
+		expect(await server.readLine()).toBe('SUB events 1');
+
+		await sendMsg(server, 'events', '1', '{}');
+		const iter = sub[Symbol.asyncIterator]();
+		const { value } = await iter.next();
+		expect(value!.respond).toBeUndefined();
+
+		await conn.close();
+	});
+});
+
+describe('nats requestJson', () => {
+	it('serializes the request and parses the JSON reply', async () => {
+		const { conn, server } = await connected();
+
+		const serverScript = (async () => {
+			const subLine = await server.readLine();
+			const subParts = subLine.split(/\s+/);
+			expect(subParts[0]).toBe('SUB');
+			const inbox = subParts[1]!;
+			const sid = subParts[2]!;
+
+			const pubLine = await server.readLine();
+			const pubParts = pubLine.split(/\s+/);
+			expect(pubParts[0]).toBe('PUB');
+			expect(pubParts[1]).toBe('calc.add');
+			expect(pubParts[2]).toBe(inbox);
+			const reqLen = Number(pubParts[3]);
+			expect(dec.decode(await server.readN(reqLen))).toBe('[2,3]');
+			await server.readN(2); // CRLF
+
+			await sendMsg(server, inbox, sid, '{"sum":5}');
+			expect(await server.readLine()).toBe(`UNSUB ${sid}`);
+		})();
+
+		const [reply] = await Promise.all([
+			conn.requestJson<{ sum: number }>('calc.add', [2, 3], { timeoutMs: 3000 }),
+			serverScript
+		]);
+		expect(reply).toEqual({ sum: 5 });
+		await conn.close();
+	});
+});

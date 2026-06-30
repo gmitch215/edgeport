@@ -7,6 +7,7 @@ import {
 	encodeFrame,
 	escapeHeader,
 	unescapeHeader,
+	type StompMessage,
 	type StompSession
 } from '../../src/stomp';
 import { mockConnection, type MockServerEnd } from '../mock-socket';
@@ -76,6 +77,15 @@ async function disconnect(server: MockServerEnd): Promise<void> {
 	if (receipt !== undefined) {
 		await server.write(encodeFrame('RECEIPT', { 'receipt-id': receipt }));
 	}
+}
+
+// connects through the CONNECT/CONNECTED handshake and returns the ready session + server end
+async function connected(): Promise<{ session: StompSession; server: MockServerEnd }> {
+	const { socket, server } = mockConnection();
+	const session = (
+		await Promise.all([_connectOverSocket(socket, { hostname: 'broker.test' }), handshake(server)])
+	)[0];
+	return { session, server };
 }
 
 describe('stomp frame codec', () => {
@@ -374,6 +384,91 @@ describe('stomp unsubscribe idempotency', () => {
 		const next = await readFrame(server);
 		expect(next.command).toBe('SEND');
 		expect(dec.decode(next.body)).toBe('still-alive');
+
+		await Promise.all([session.close(), disconnect(server)]);
+	});
+});
+
+describe('stomp sendJson', () => {
+	it('serializes the value and sets content-type application/json', async () => {
+		const { session, server } = await connected();
+		const value = { job: 'reindex', n: 7 };
+		const json = JSON.stringify(value);
+
+		const sendScript = (async () => {
+			const frame = await readFrame(server);
+			expect(frame.command).toBe('SEND');
+			expect(frame.headers['destination']).toBe('/queue/jobs');
+			expect(frame.headers['content-type']).toBe('application/json');
+			expect(dec.decode(frame.body)).toBe(json);
+		})();
+		await Promise.all([session.sendJson('/queue/jobs', value), sendScript]);
+
+		await Promise.all([session.close(), disconnect(server)]);
+	});
+
+	it('forwards extra headers alongside the json content-type', async () => {
+		const { session, server } = await connected();
+		const sendScript = (async () => {
+			const frame = await readFrame(server);
+			expect(frame.headers['content-type']).toBe('application/json');
+			expect(frame.headers['priority']).toBe('9');
+		})();
+		await Promise.all([
+			session.sendJson('/queue/jobs', { ok: true }, { headers: { priority: '9' } }),
+			sendScript
+		]);
+
+		await Promise.all([session.close(), disconnect(server)]);
+	});
+});
+
+describe('stomp message json() / text()', () => {
+	it('decodes a delivered body as text and as JSON', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribe('/topic/news');
+
+		const subScript = (async () => {
+			const frame = await readFrame(server);
+			expect(frame.command).toBe('SUBSCRIBE');
+			await server.write(
+				encodeFrame(
+					'MESSAGE',
+					{ subscription: sub.id, 'message-id': 'm-1', destination: '/topic/news' },
+					enc.encode('{"headline":"hi"}')
+				)
+			);
+		})();
+
+		const iter = sub[Symbol.asyncIterator]();
+		const [result] = await Promise.all([iter.next(), subScript]);
+		const msg: StompMessage = result.value;
+		expect(msg.text()).toBe('{"headline":"hi"}');
+		expect(msg.json<{ headline: string }>()).toEqual({ headline: 'hi' });
+
+		await Promise.all([session.close(), disconnect(server)]);
+	});
+
+	it('json() throws ProtocolError on a non-JSON body', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribe('/topic/raw');
+
+		const subScript = (async () => {
+			await readFrame(server);
+			await server.write(
+				encodeFrame(
+					'MESSAGE',
+					{ subscription: sub.id, 'message-id': 'm-2', destination: '/topic/raw' },
+					enc.encode('not json')
+				)
+			);
+		})();
+
+		const iter = sub[Symbol.asyncIterator]();
+		const [result] = await Promise.all([iter.next(), subScript]);
+		const msg: StompMessage = result.value;
+		expect(msg.text()).toBe('not json');
+		expect(() => msg.json()).toThrow(ProtocolError);
 
 		await Promise.all([session.close(), disconnect(server)]);
 	});
