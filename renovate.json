@@ -5,6 +5,12 @@
 	"packageRules": [
 		{
 			"matchUpdateTypes": ["minor", "patch", "pin", "digest"]
+		},
+		{
+			"description": "pinned: osixia/openldap digests past sha256:18742e9c break edgeport's plaintext LDAP bind under workerd (slapd behavior change drops the bind connection); see docker/compose.yml",
+			"matchDatasources": ["docker"],
+			"matchPackageNames": ["osixia/openldap"],
+			"enabled": false
 		}
 	]
 }

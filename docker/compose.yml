@@ -9,6 +9,9 @@ services:
       PASSWORD_ACCESS: 'true'
       SUDO_ACCESS: 'false'
       PUBLIC_KEY: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAnF7atOlMGjLStyDOX18TjMUk5v41Xsl+GrO+Kj2o+9 edgeport-test'
+    volumes:
+      # provisions password-required sudo for tester (see the script) so sudo tests are real
+      - ./openssh-init:/custom-cont-init.d:ro
     ports:
       - '127.0.0.1:2222:2222'
 
@@ -64,7 +67,9 @@ services:
       - '127.0.0.1:40000-40009:40000-40009'
 
   openldap:
-    image: osixia/openldap@sha256:3f68751292b43564a2586fc29fb7337573e2dad692b92d4e78e49ad5c22e567b
+    # pinned: digests past this one break edgeport's plaintext LDAP bind under workerd
+    # (the bind connection is dropped before the response); Renovate is told to leave it alone
+    image: osixia/openldap@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
     environment:
       LDAP_ORGANISATION: 'edgeport'
       LDAP_DOMAIN: 'example.org'
