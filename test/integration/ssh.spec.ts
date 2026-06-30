@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { connect, exec } from '../../src/ssh/index';
+import { connect as sftpConnect } from '../../src/sftp/index';
+import { connect, exec, sudo, sudoExec } from '../../src/ssh/index';
 // encrypted PKCS#8 form of the same ed25519 key authorized in docker/compose.yml
 import encryptedKey from '../fixtures/ed25519_pkcs8_enc.pem?raw';
 
@@ -117,5 +118,131 @@ describe('key re-exchange (rekey)', () => {
 		expect(lines.length).toBe(20000);
 		expect(lines[0]).toBe('1');
 		expect(lines[lines.length - 1]).toBe('20000');
+	});
+});
+
+describe('session reuse and connectivity hardening', () => {
+	it('survives exec -> sftp write -> exec on one reused session (the reported repro)', async () => {
+		await using ssh = await connect(base);
+		const dir = '/tmp/edgeport-reuse';
+		expect((await ssh.exec(`mkdir -p ${dir}`)).code).toBe(0);
+		{
+			// sftp over the SAME ssh session; disposing it client-closes the subsystem channel
+			await using sftp = await sftpConnect({ session: ssh });
+			await sftp.writeFile(`${dir}/x.txt`, new TextEncoder().encode('reuse-ok\n'));
+		}
+		// with the bug, the duplicate close disconnected us before this third channel finished
+		const r = await ssh.exec(`cat ${dir}/x.txt`);
+		expect(r.code).toBe(0);
+		expect(dec(r.stdout)).toContain('reuse-ok');
+		await ssh.exec(`rm -rf ${dir}`);
+	});
+
+	it('stays usable after repeatedly opening and client-closing channels', async () => {
+		await using ssh = await connect(base);
+		for (let i = 0; i < 5; i++) {
+			const shell = await ssh.shell();
+			await shell.close(); // client initiates the close - the bug's trigger
+			expect((await ssh.exec(`echo round-${i}`)).code).toBe(0);
+		}
+		expect(dec((await ssh.exec('echo still-alive')).stdout)).toContain('still-alive');
+	});
+
+	it('opens and client-closes a subsystem, then keeps reusing the session', async () => {
+		await using ssh = await connect(base);
+		const sftp = await sftpConnect({ session: ssh });
+		await sftp.list('/tmp');
+		await sftp.close(); // client-initiated subsystem channel close
+		expect((await ssh.exec('echo after-sftp')).code).toBe(0);
+		// a second sftp subsystem on the same session must also work
+		await using sftp2 = await sftpConnect({ session: ssh });
+		await sftp2.writeFile('/tmp/edgeport-reuse2.txt', new TextEncoder().encode('two\n'));
+		expect(dec((await ssh.exec('cat /tmp/edgeport-reuse2.txt')).stdout)).toContain('two');
+		await ssh.exec('rm -f /tmp/edgeport-reuse2.txt');
+	});
+
+	it('runs concurrent channels on one session', async () => {
+		await using ssh = await connect(base);
+		const [a, b, c] = await Promise.all([
+			ssh.exec('echo aaa'),
+			ssh.exec('echo bbb'),
+			ssh.exec('echo ccc')
+		]);
+		expect(dec(a.stdout)).toContain('aaa');
+		expect(dec(b.stdout)).toContain('bbb');
+		expect(dec(c.stdout)).toContain('ccc');
+	});
+
+	it('execStream round-trips stdin through cat', async () => {
+		await using ssh = await connect(base);
+		await using ch = await ssh.execStream('cat');
+		await ch.write(new TextEncoder().encode('hello-edgeport\n'));
+		await ch.eof();
+		const reader = ch.stdout.getReader();
+		let out = '';
+		for (;;) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			if (value) out += dec(value);
+		}
+		await ch.exit;
+		expect(out.trim()).toBe('hello-edgeport');
+	});
+});
+
+// password sudo (tester has password-required sudo via docker/openssh-init)
+describe('sudo', () => {
+	it('sudoExec runs as root via credential reuse (uid 0)', async () => {
+		const { stdout, code } = await sudoExec({ ...base, command: 'id -u' });
+		expect(code).toBe(0);
+		expect(dec(stdout).trim()).toBe('0');
+	});
+
+	it('sudo over an already-open session runs as root', async () => {
+		await using ssh = await connect(base);
+		const { stdout, code } = await sudo(ssh, 'whoami', { password: 'testpass' });
+		expect(code).toBe(0);
+		expect(dec(stdout).trim()).toBe('root');
+	});
+});
+
+// POSIX command helpers against the real server (the container is alpine/busybox)
+describe('command helpers', () => {
+	it('round-trips mkdirp/writeTextFile/readTextFile/exists/stat/rm', async () => {
+		await using ssh = await connect(base);
+		const dir = `/tmp/edgeport-it-${Date.now()}`;
+		const file = `${dir}/note.txt`;
+		const body = 'hello from edgeport\nsecond line\n';
+
+		await ssh.mkdirp(dir, { mode: 0o755 });
+		expect(await ssh.exists(dir)).toBe(true);
+
+		await ssh.writeTextFile(file, body);
+		expect(await ssh.exists(file)).toBe(true);
+		expect(await ssh.readTextFile(file)).toBe(body);
+
+		const st = await ssh.stat(file);
+		expect(st.size).toBe(new TextEncoder().encode(body).length);
+		expect(st.isDirectory).toBe(false);
+		expect(st.isSymlink).toBe(false);
+		expect(st.mtime).toBeGreaterThan(0);
+		expect((await ssh.stat(dir)).isDirectory).toBe(true);
+
+		await ssh.writeTextFile(file, 'third line\n', { append: true });
+		expect(await ssh.readTextFile(file)).toBe(body + 'third line\n');
+
+		await ssh.rm(dir, { recursive: true, force: true });
+		expect(await ssh.exists(dir)).toBe(false);
+	});
+
+	it('df and which return parsed, portable results', async () => {
+		await using ssh = await connect(base);
+		const rows = await ssh.df('/');
+		expect(rows.length).toBeGreaterThan(0);
+		expect(rows[0]!.mountedOn.length).toBeGreaterThan(0);
+		expect(Number.isNaN(rows[0]!.sizeKb)).toBe(false);
+		const sh = await ssh.which('sh');
+		expect(sh).toContain('/sh');
+		expect(await ssh.which('definitely-not-a-real-binary-xyz')).toBeNull();
 	});
 });
