@@ -40,7 +40,7 @@ jobs:
           sudo sysctl -w net.ipv4.tcp_tw_reuse=1
           sudo sysctl -w net.ipv4.tcp_fin_timeout=15
       - name: Run Integration Tests
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         env:
           INTEGRATION: '1'
         with:
