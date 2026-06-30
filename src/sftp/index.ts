@@ -30,7 +30,8 @@ import {
 } from '../ssh/index';
 import { SshReader, SshWriter } from '../wire';
 
-const Pkt = {
+/** SFTP packet types. */
+export const Pkt = {
 	INIT: 1,
 	VERSION: 2,
 	OPEN: 3,
@@ -53,10 +54,17 @@ const Pkt = {
 	ATTRS: 105
 } as const;
 
-const PFlags = { READ: 0x1, WRITE: 0x2, CREAT: 0x8, TRUNC: 0x10 };
-const Status = { OK: 0, EOF: 1, NO_SUCH_FILE: 2, FAILURE: 4 };
-// attr flag bits (draft-02 4.4); only PERMISSIONS is used when we encode a SETSTAT
-const Attr = { PERMISSIONS: 0x4 };
+/** SFTP open flags. */
+export const PFlags = { READ: 0x1, WRITE: 0x2, CREAT: 0x8, TRUNC: 0x10 };
+/** SFTP status codes. */
+export const Status = { OK: 0, EOF: 1, NO_SUCH_FILE: 2, FAILURE: 4 };
+/** SFTP attribute flags. */
+export const Attr = {
+	SIZE: 0x1,
+	UIDGID: 0x2,
+	PERMISSIONS: 0x4,
+	ACMODTIME: 0x8
+};
 const READ_CHUNK = 32 * 1024;
 
 /** File attributes returned by stat/list. */
