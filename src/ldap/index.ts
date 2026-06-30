@@ -48,11 +48,36 @@ const EXT_REQUEST_NAME = 0;
 
 const SCOPE_CODE: Record<SearchScope, number> = { base: 0, one: 1, sub: 2 };
 const RESULT_SUCCESS = 0;
+const RESULT_SIZE_LIMIT_EXCEEDED = 4;
 const RESULT_INVALID_CREDENTIALS = 49;
 
 /** Re-export of the structured {@link Filter} union for callers building filters directly. */
 export { encodeFilter, parseFilter } from './filter';
-export type { Filter } from './filter';
+export type {
+	AndOrFilter,
+	AttributeValueFilter,
+	Filter,
+	NotFilter,
+	PresentFilter,
+	SubstringsFilter
+} from './filter';
+
+// injection-safe filter builders + escaping helpers
+export {
+	and,
+	approx,
+	contains,
+	eq,
+	escapeDN,
+	escapeFilterValue,
+	filters,
+	gte,
+	lte,
+	not,
+	or,
+	present,
+	substring
+} from './builders';
 
 /** Search scope: a single entry, its immediate children, or the whole subtree. */
 export type SearchScope = 'base' | 'one' | 'sub';
@@ -133,6 +158,15 @@ export interface LdapSession extends AsyncDisposable {
 	 * @throws {ProtocolError} If the server returns a non-success result in `SearchResultDone`.
 	 */
 	search(opts: SearchOptions): Promise<LdapEntry[]>;
+	/**
+	 * Runs a search capped at a single result and returns the first entry, or `null` if none
+	 * match. Forces `sizeLimit` to 1 regardless of what `opts` carries.
+	 *
+	 * @param opts - The search parameters; `sizeLimit` is overridden to 1.
+	 * @returns The first matching entry, or `null` when there are none.
+	 * @throws {ProtocolError} If the server returns a non-success result in `SearchResultDone`.
+	 */
+	findOne(opts: SearchOptions): Promise<LdapEntry | null>;
 	/** Sends an unbind request and closes the connection. */
 	close(): Promise<void>;
 }
@@ -201,6 +235,99 @@ export async function search(opts: LdapConnectOptions & SearchOptions): Promise<
 	const session = await connect(opts);
 	try {
 		return await session.search(opts);
+	} finally {
+		await session.close();
+	}
+}
+
+/**
+ * Options for {@link authenticate}: connection settings plus the user lookup and the candidate
+ * password.
+ *
+ * The service-account credentials used for the lookup are {@link LdapConnectOptions.bindDN} and
+ * {@link AuthenticateOptions.bindPassword}; when neither is set the lookup binds anonymously.
+ * The top-level {@link AuthenticateOptions.password} is the *user's* candidate password,
+ * verified by re-binding as the located entry (it overrides the inherited connect-options
+ * `password` so the two roles never collide).
+ */
+export interface AuthenticateOptions extends LdapConnectOptions {
+	/** Base DN to search for the user under. */
+	base: string;
+	/**
+	 * Filter selecting the user entry, as an RFC 4515 string or a structured {@link Filter}.
+	 * Prefer a structured filter built from {@link eq}/{@link and} so untrusted usernames cannot
+	 * inject filter syntax.
+	 */
+	userFilter: string | Filter;
+	/** The user's candidate password, verified by re-binding as the located entry. */
+	password: string;
+	/** Service-account password for the lookup bind; omit (with no `bindDN`) to bind anonymously. */
+	bindPassword?: string;
+	/** Scope for the user lookup; defaults to `'sub'`. */
+	scope?: SearchScope;
+	/** Attributes to return on the located entry; omitted returns all user attributes. */
+	attributes?: string[];
+}
+
+/**
+ * Authenticates a user by the bind-search-bind pattern.
+ *
+ * Connects and binds as the service account ({@link LdapConnectOptions.bindDN} /
+ * {@link AuthenticateOptions.bindPassword}), or anonymously when no `bindDN` is given; searches
+ * under `base` for the entry matching `userFilter` (capped at one result); then re-binds as that
+ * entry's DN with the user's {@link AuthenticateOptions.password}. The session is always closed
+ * before returning.
+ *
+ * @param opts - Connection settings, the user lookup, and the candidate password.
+ * @returns The matched entry on a successful password bind, or `null` when no entry matches or
+ *   the password is wrong.
+ * @throws {ConnectionError} If the connection or TLS upgrade fails.
+ * @throws {AuthError} If the *service-account* bind is rejected (a wrong user password returns
+ *   `null` instead).
+ * @throws {ProtocolError} If the server misbehaves during search or bind.
+ * @since 1.0.2
+ * @example
+ * ```typescript
+ * const entry = await authenticate({
+ *   hostname: 'ldap.example.org',
+ *   bindDN: 'cn=admin,dc=example,dc=org',
+ *   bindPassword: 'service-secret',
+ *   base: 'ou=people,dc=example,dc=org',
+ *   userFilter: eq('uid', 'jdoe'),
+ *   password: 'the-user-password'
+ * });
+ * if (entry) {
+ *   // authenticated; entry.dn is the bound user
+ * }
+ * ```
+ */
+export async function authenticate(opts: AuthenticateOptions): Promise<LdapEntry | null> {
+	// service-account (or anonymous) bind to perform the lookup
+	const session = await connect({
+		hostname: opts.hostname,
+		port: opts.port,
+		tls: opts.tls,
+		expectedServerHostname: opts.expectedServerHostname,
+		bindDN: opts.bindDN,
+		password: opts.bindDN !== undefined ? (opts.bindPassword ?? '') : undefined,
+		timeoutMs: opts.timeoutMs
+	});
+	try {
+		const entry = await session.findOne({
+			base: opts.base,
+			scope: opts.scope ?? 'sub',
+			filter: opts.userFilter,
+			attributes: opts.attributes
+		});
+		if (entry === null) return null;
+		try {
+			await session.bind(entry.dn, opts.password);
+			return entry;
+		} catch (err) {
+			// wrong password -> bad bind; treat as auth failure, rethrow anything else
+			if (err instanceof AuthError) return null;
+			throw err;
+		}
 	} finally {
 		await session.close();
 	}
@@ -314,6 +441,17 @@ class LdapSessionImpl implements LdapSession {
 	}
 
 	async search(opts: SearchOptions): Promise<LdapEntry[]> {
+		return this.#runSearch(opts);
+	}
+
+	async findOne(opts: SearchOptions): Promise<LdapEntry | null> {
+		// force sizeLimit 1; a server may answer sizeLimitExceeded, which is fine here
+		const entries = await this.#runSearch({ ...opts, sizeLimit: 1 });
+		return entries[0] ?? null;
+	}
+
+	// reads SearchResultEntry messages until the SearchResultDone for this request
+	async #runSearch(opts: SearchOptions): Promise<LdapEntry[]> {
 		const id = this.#nextId++;
 		await this.#writer.write(this.#encodeSearchRequest(id, opts));
 
@@ -326,14 +464,13 @@ class LdapSessionImpl implements LdapSession {
 			}
 			if (op === OP_SEARCH_RESULT_DONE) {
 				const code = body.enumerated();
-				if (code !== RESULT_SUCCESS) {
-					const matched = body.octetStringText();
-					const diag = body.octetStringText();
-					throw new ProtocolError(`search failed (code ${code}): ${diag || matched}`, {
-						protocol: PROTO
-					});
-				}
-				return entries;
+				// sizeLimitExceeded is expected when a sizeLimit truncates the result set
+				if (code === RESULT_SUCCESS || code === RESULT_SIZE_LIMIT_EXCEEDED) return entries;
+				const matched = body.octetStringText();
+				const diag = body.octetStringText();
+				throw new ProtocolError(`search failed (code ${code}): ${diag || matched}`, {
+					protocol: PROTO
+				});
 			}
 			// SearchResultReference (op 19) and anything else are skipped
 		}
