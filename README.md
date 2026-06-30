@@ -151,6 +151,38 @@ await using ssh = await connect({
 });
 ```
 
+### Executing with Sudo
+
+`sudo` does not read its password from SSH auth - it prompts over the channel. Log in with
+`onKeyboardInteractive` (servers that disable `password` auth still allow this), then open a
+shell, run `sudo -S` so it reads the password from stdin, and feed it the same secret:
+
+```typescript
+import { connect } from 'edgeport/ssh';
+
+await using ssh = await connect({
+	hostname: 'host',
+	username: 'user',
+	// keyboard-interactive: the server sends prompts, you return one answer per prompt
+	onKeyboardInteractive: async (prompts) =>
+		prompts.map((p) => (/password/i.test(p.prompt) ? env.PW : ''))
+});
+
+await using shell = await ssh.shell();
+const enc = new TextEncoder();
+
+// -S reads the password from stdin; -p '' silences sudo's own prompt
+await shell.write(enc.encode(`sudo -S -p '' systemctl restart myapp\n`));
+await shell.write(enc.encode(`${env.PW}\n`));
+
+const reader = shell.stdout.getReader();
+const { value } = await reader.read();
+console.log(new TextDecoder().decode(value));
+```
+
+Each `prompts` entry carries the server's `prompt` text and an `echo` flag (`false` for
+secrets) so you can match prompts and decide what to send.
+
 ### Forcing a Cipher
 
 ```typescript
