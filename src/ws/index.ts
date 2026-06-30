@@ -28,7 +28,21 @@ export interface WsConnectOptions {
  *
  * @since 1.0.0
  */
-export type WsMessage = { type: 'text'; data: string } | { type: 'binary'; data: Uint8Array };
+export type WsMessage =
+	| {
+			type: 'text';
+			data: string;
+			/**
+			 * Parses the text payload as JSON.
+			 *
+			 * @typeParam T - The expected shape of the decoded value.
+			 * @returns The parsed value.
+			 * @throws {ProtocolError} If the text is not valid JSON.
+			 * @since 1.0.2
+			 */
+			json<T = unknown>(): T;
+	  }
+	| { type: 'binary'; data: Uint8Array };
 
 /**
  * A live WebSocket connection.
@@ -59,6 +73,15 @@ export interface WsConnection extends AsyncDisposable, AsyncIterable<WsMessage> 
 	 */
 	send(data: string | Uint8Array): void;
 	/**
+	 * Serializes a value to JSON and sends it as a text frame.
+	 *
+	 * The value is `JSON.stringify`-ed and sent with {@link send}.
+	 *
+	 * @param value - The value to serialize and send.
+	 * @since 1.0.2
+	 */
+	sendJson(value: unknown): void;
+	/**
 	 * Closes the connection.
 	 *
 	 * @param code - Optional RFC 6455 close code (e.g. `1000`).
@@ -88,9 +111,20 @@ export interface MinimalWebSocket {
 	addEventListener(type: string, listener: (event: any) => void): void;
 }
 
+// parses a text frame as JSON; a parse failure is a ProtocolError, never a raw SyntaxError
+function decodeTextJson<T>(text: string): T {
+	try {
+		return JSON.parse(text) as T;
+	} catch (cause) {
+		throw new ProtocolError('websocket text message is not valid json', { protocol: 'ws', cause });
+	}
+}
+
 // normalizes a 'message' event payload into a WsMessage
 function toWsMessage(data: unknown): WsMessage {
-	if (typeof data === 'string') return { type: 'text', data };
+	if (typeof data === 'string') {
+		return { type: 'text', data, json: <T = unknown>(): T => decodeTextJson<T>(data) };
+	}
 	if (data instanceof Uint8Array) return { type: 'binary', data };
 	if (data instanceof ArrayBuffer) return { type: 'binary', data: new Uint8Array(data) };
 	if (ArrayBuffer.isView(data)) {
@@ -172,6 +206,10 @@ class WsConnectionImpl implements WsConnection {
 
 	send(data: string | Uint8Array): void {
 		this.#ws.send(data);
+	}
+
+	sendJson(value: unknown): void {
+		this.#ws.send(JSON.stringify(value));
 	}
 
 	close(code?: number, reason?: string): void {
