@@ -15,6 +15,8 @@
 		"src/ldap/index.ts",
 		"src/ldaps/index.ts",
 		"src/syslog/index.ts",
+		"src/smpp/index.ts",
+		"src/util/index.ts",
 		"src/wire.ts",
 		"src/crypto/index.ts",
 		"src/kex/index.ts",

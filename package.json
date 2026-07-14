@@ -65,6 +65,14 @@
 			"types": "./dist/syslog/index.d.ts",
 			"import": "./dist/syslog/index.js"
 		},
+		"./smpp": {
+			"types": "./dist/smpp/index.d.ts",
+			"import": "./dist/smpp/index.js"
+		},
+		"./util": {
+			"types": "./dist/util/index.d.ts",
+			"import": "./dist/util/index.js"
+		},
 		"./wire": {
 			"types": "./dist/wire.d.ts",
 			"import": "./dist/wire.js"
