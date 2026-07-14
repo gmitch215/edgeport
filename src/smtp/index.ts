@@ -25,6 +25,8 @@ import {
 } from '../core';
 import { buildMime } from './mime';
 
+export * from './sms';
+
 const PROTOCOL = 'smtp';
 const DEFAULT_SUBMISSION_PORT = 587;
 const IMPLICIT_TLS_PORT = 465;
