@@ -22,6 +22,7 @@ import {
 	type FramedReader,
 	type FramedWriter
 } from '../core';
+import { randomHex } from '../util';
 import { jetstream, type JetStreamManager } from './jetstream';
 import { parseCreds, signNonce } from './nkey';
 
@@ -549,7 +550,7 @@ class NatsConnectionImpl implements NatsConnection {
 	): Promise<NatsMessage> {
 		this.#assertOpen();
 		const timeoutMs = opts?.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-		const inbox = `_INBOX.${randomToken()}`;
+		const inbox = `_INBOX.${randomHex()}`;
 		const sub = this.subscribe(inbox) as Subscription;
 		try {
 			await this.publish(subject, data, { reply: inbox });
@@ -600,13 +601,6 @@ class NatsConnectionImpl implements NatsConnection {
 	[Symbol.asyncDispose](): Promise<void> {
 		return this.close();
 	}
-}
-
-// 16 random hex chars for a unique reply inbox; crypto, never Math.random
-function randomToken(): string {
-	const bytes = new Uint8Array(8);
-	crypto.getRandomValues(bytes);
-	return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 // reads INFO, parses its JSON, and decides whether TLS is required

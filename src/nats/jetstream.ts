@@ -15,6 +15,7 @@
  * @since 1.0.0
  */
 import { ProtocolError, TimeoutError } from '../core/errors';
+import { randomHex } from '../util';
 import type { NatsConnection } from './index';
 
 const PROTO = 'nats';
@@ -249,13 +250,6 @@ function msToNs(ms: number): number {
 	return ms * 1_000_000;
 }
 
-// 16 random hex chars for a unique pull inbox; crypto, never Math.random
-function randomToken(): string {
-	const bytes = new Uint8Array(8);
-	crypto.getRandomValues(bytes);
-	return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 /**
  * Parses a `$JS.API` reply body into JSON, surfacing an embedded `error` as {@link ProtocolError}.
  *
@@ -338,11 +332,7 @@ class PullConsumerImpl implements PullConsumer {
 	async fetch(batch: number, opts?: FetchOptions): Promise<JsMessage[]> {
 		const expiresMs = opts?.expiresMs ?? 1000;
 		const nextSubject = `$JS.API.CONSUMER.MSG.NEXT.${this.stream}.${this.durable}`;
-		// one inbox + one MSG.NEXT for the whole batch: the server streams up to `batch` messages
-		// (each its own MSG with an ack inbox) to this single inbox, then a status frame at expiry.
-		// pulling one-at-a-time with separate request inboxes loses un-acked deliveries to the
-		// closed inbox and the server redelivers the same pending head every time.
-		const inbox = `_INBOX.${randomToken()}`;
+		const inbox = `_INBOX.${randomHex()}`;
 		const sub = this.#nc.subscribe(inbox);
 		const iter = sub[Symbol.asyncIterator]();
 		const out: JsMessage[] = [];

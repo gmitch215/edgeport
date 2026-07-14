@@ -22,6 +22,7 @@ import {
 	type FramedReader,
 	type FramedWriter
 } from '../core';
+import { randomId } from '../util';
 import { connect as wsConnect, type WsConnection } from '../ws';
 import {
 	PacketType,
@@ -728,13 +729,6 @@ function wsTransport(ws: WsConnection): MqttTransport {
 	};
 }
 
-// 16 random hex chars for a client id when the caller does not supply one
-function randomClientId(): string {
-	const bytes = new Uint8Array(8);
-	crypto.getRandomValues(bytes);
-	return 'edgeport-' + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 /**
  * Runs the MQTT CONNECT handshake and read pump over an already-built {@link MqttTransport}.
  *
@@ -756,7 +750,7 @@ export async function _connectOverTransport(
 ): Promise<MqttSession> {
 	const keepAliveSeconds = opts.keepAliveSeconds ?? DEFAULT_KEEPALIVE_SECONDS;
 	const connect = encodeConnect({
-		clientId: opts.clientId ?? randomClientId(),
+		clientId: opts.clientId ?? randomId('edgeport'),
 		keepAliveSeconds,
 		cleanSession: opts.cleanSession ?? true,
 		username: opts.username,
