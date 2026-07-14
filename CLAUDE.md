@@ -2,8 +2,10 @@
 
 TypeScript TCP-protocol library for the **Cloudflare Workers** runtime built on
 `cloudflare:sockets`. Bun + strict ESM. Protocols: SSH, SFTP, SMTP, IMAP, POP3, WebSocket,
-NATS, MQTT (+ MQTT-over-WS), STOMP, FTP, LDAP/LDAPS, Syslog. Runtime deps: `@noble/ciphers`
-(SSH ChaCha) and `bcrypt-pbkdf` (encrypted OpenSSH keys) - both Workers-compatible, external.
+NATS, MQTT (+ MQTT-over-WS), STOMP, FTP, LDAP/LDAPS, Syslog, SMPP (v3.4 ESME). Also `edgeport/util`
+(transport-free hex/base64/random/retry helpers) and SMTP email-to-SMS gateways (`sendSms`).
+Runtime deps: `@noble/ciphers` (SSH ChaCha) and `bcrypt-pbkdf` (encrypted OpenSSH keys) - both
+Workers-compatible, external.
 
 ## Architecture
 
@@ -54,8 +56,10 @@ Docker test creds/ports: SSH/SFTP `tester`/`testpass` on 2222 (OpenSSH) + 2223 (
 mail `tester`/`testpass` (`tester@localhost`) on greenmail 3025/3143/3110; ws-echo 8081;
 NATS `tester`/`testpass` 4222; FTP `tester`/`testpass` 21 (passive 40000-40009); OpenLDAP
 admin `cn=admin,dc=example,dc=org`/`admin` 389; MQTT mosquitto anon 1883; STOMP ActiveMQ
-`admin`/`admin` 61613; syslog socat sink 5514. The publickey test key is
-`test/fixtures/ed25519_pkcs8.pem` (its pub is in compose); more key fixtures in `test/fixtures/`.
+`admin`/`admin` 61613; syslog socat sink 5514; SMPP `ukarim/smscsim` (any system_id, no auth)
+2775 + MO-inject HTTP 12775 (emits a `DELIVRD` receipt ~2s after a registered submit). The
+publickey test key is `test/fixtures/ed25519_pkcs8.pem` (its pub is in compose); more key
+fixtures in `test/fixtures/`.
 
 ## Conventions
 
