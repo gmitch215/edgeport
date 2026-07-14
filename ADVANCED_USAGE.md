@@ -49,6 +49,8 @@ the values look like, and where they come from.
 | `FTP` / `LANDING` / `DR`                 | FTP server host(s)                                   | `files.example.com`                                      | your FTP server (passive mode; ports 21 + a passive range)                     |
 | `GW`                                     | WebSocket gateway host (for `wss://`)                | `gateway.example.com`                                    | your realtime/WS endpoint                                                      |
 | `SIEM`                                   | syslog collector host (RFC 5424 over TLS)            | `logs.example.com`                                       | your SIEM/log aggregator (Datadog, Splunk, rsyslog, ...) listening on 6514     |
+| `SMSC`                                   | SMPP SMSC host (carrier/aggregator or a simulator)   | `smsc.example.com`                                       | your SMS provider's SMPP endpoint (port 2775)                                  |
+| `SMPP_SYSTEM_ID` / `SMPP_PW`             | SMPP bind credentials (ESME system id + password)    | `esme` / a password                                      | issued by your SMS provider                                                    |
 
 **Cloudflare Email Service (SMTP):** set `SMTP`/`MAIL` to `smtp.mx.cloudflare.net`, `tls: 'implicit'`
 (port 465), the username to the literal string `api_token`, and the password to a Cloudflare API
@@ -74,6 +76,7 @@ the [Cloudflare Email Service SMTP docs](https://developers.cloudflare.com/email
 | [Notification Fan-Out](#notification-fan-out)                   | NATS + WebSocket + MQTT + STOMP + Syslog | One event -> three transports, ordering, slow-consumer isolation |
 | [Credential-Protecting Gateway](#credential-protecting-gateway) | LDAPS + SSH + SFTP + Syslog              | LDAPS fail-closed, no downgrade, server-identity gate            |
 | [Certificate Lifecycle](#certificate-lifecycle)                 | LDAPS + Syslog + SMTP                    | Cert validation fails closed -> alert + audit                    |
+| [Carrier SMS Delivery](#carrier-sms-delivery)                   | SMPP + SMS-over-email + Syslog + util    | Carrier SMPP delivery + receipt, email-gateway fallback, audit   |
 
 ---
 
@@ -869,6 +872,86 @@ try {
 
 **Use case:** detecting and alerting on directory-certificate expiry/rotation failures.
 
+## Carrier SMS Delivery
+
+**Modules:** SMPP + SMS-over-email (SMTP) + Syslog + util, [`sms.spec.ts`](./test/integration/recipes/sms.spec.ts)
+
+### Prerequisites
+
+- **SMSC** `SMSC` + `SMPP_SYSTEM_ID`/`SMPP_PW`: an SMPP v3.4 SMSC (a carrier/aggregator, or a simulator) reachable on 2775.
+- **SMTP** `SMTP` + `SMTP_USER`/`SMTP_PW`: the email-to-SMS fallback path.
+- **Syslog collector** `SIEM`: the audit trail.
+
+See [Environment & Services](#environment--services) for value formats and how to obtain each.
+
+A two-tier SMS sender: the primary path binds to a carrier SMSC over SMPP and submits with a
+requested delivery receipt (carrier-grade delivery, confirmed by the returned `deliver_sm`); if
+the SMPP link is unreachable the fallback addresses the recipient's carrier email-to-SMS gateway
+and sends it over SMTP. The flaky connect is wrapped in `util.retry` (which retries only
+transient transport errors, never an auth/protocol rejection), and every step is audited to
+Syslog.
+
+```typescript
+import { connect as smppConnect } from 'edgeport/smpp';
+import { sendSms } from 'edgeport/smtp';
+import { connect as syslogConnect } from 'edgeport/syslog';
+import { retry } from 'edgeport/util';
+
+await using audit = await syslogConnect({
+	hostname: env.SIEM,
+	port: 6514,
+	tls: 'implicit',
+	appName: 'sms'
+});
+
+try {
+	// 1. primary: submit over SMPP (retry only transient connect failures)
+	await using smpp = await retry(() =>
+		smppConnect({
+			hostname: env.SMSC,
+			systemId: env.SMPP_SYSTEM_ID,
+			password: env.SMPP_PW,
+			bindMode: 'transceiver'
+		})
+	);
+	const id = await smpp.submit({
+		source: 'EDGEPORT',
+		destination: number,
+		message,
+		registeredDelivery: true
+	});
+	await audit.info(`submitted ${id}`);
+
+	// confirm delivery from the SMSC receipt that arrives on the same session
+	for await (const inbound of smpp.messages()) {
+		const r = inbound.receipt();
+		if (inbound.isDeliveryReceipt && r.id === id) {
+			await audit.info(`delivered ${id} ${r.stat}`); // e.g. 'DELIVRD'
+			break;
+		}
+	}
+} catch (err) {
+	// 2. fallback: the recipient's carrier email-to-SMS gateway over SMTP
+	await audit.warn(`smpp failed, using the email gateway: ${err}`);
+	const result = await sendSms({
+		hostname: env.SMTP,
+		auth: { username: env.SMTP_USER, password: env.SMTP_PW },
+		from: 'alerts@example.com',
+		to: { number, carrier }, // e.g. { number: '12065550100', carrier: 'att' }
+		text: message
+	});
+	await audit.info(`email-sms to ${result.accepted[0]}`);
+}
+```
+
+> The spec runs the SMPP leg against the `ukarim/smscsim` SMSC simulator (submit + a confirmed
+> `DELIVRD` receipt over one session, retry-wrapped) and the email-to-SMS leg against GreenMail
+> (the computed `number@gateway` address is accepted and echoed back in the send result),
+> auditing every step to the syslog readback sink.
+
+**Use case:** a resilient SMS sender that prefers a carrier SMPP link and falls back to the
+email-to-SMS gateway, with delivery confirmation and a full audit trail.
+
 ---
 
 ## Notes on Test Infrastructure
@@ -880,3 +963,7 @@ try {
 - **Port forwarding:** SSH `forwardOut` (direct-tcpip) is verified against Dropbear, which
   permits TCP forwarding (`linuxserver/openssh` disables it by default).
 - **JetStream:** the NATS server runs with `-js` enabled for the recovery recipe.
+- **SMPP:** the `ukarim/smscsim` SMSC simulator accepts any bind, returns a `message_id` on
+  `submit_sm`, and emits a delivery-receipt `deliver_sm` (`stat:DELIVRD`) a couple of seconds
+  after a `submit_sm` that set `registered_delivery`; mobile-originated messages can be injected
+  via its HTTP form on `:12775`.
