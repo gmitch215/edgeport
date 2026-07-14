@@ -117,3 +117,9 @@ services:
     ports:
       - '127.0.0.1:5514:5514' # ingest
       - '127.0.0.1:5515:5515' # readback
+
+  smscsim:
+    image: ukarim/smscsim@sha256:673ef3b2c62e3aa34be0528a9034b53e04c4fc2fbf4e65e03225717de8890707
+    ports:
+      - '127.0.0.1:2775:2775' # smpp
+      - '127.0.0.1:12775:12775' # http MO injection
