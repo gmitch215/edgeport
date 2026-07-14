@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { AuthError } from '../../src/core';
-import { _sessionFromSocket, type SmtpConnectOptions } from '../../src/smtp/index';
+import { AuthError, ProtocolError } from '../../src/core';
+import {
+	CarrierGateways,
+	_sessionFromSocket,
+	sendSms,
+	smsAddress,
+	type CarrierGateway,
+	type SmtpConnectOptions
+} from '../../src/smtp/index';
 import { buildMime } from '../../src/smtp/mime';
 import { mockConnection, type MockServerEnd } from '../mock-socket';
 
@@ -407,5 +414,145 @@ describe('MIME builder', () => {
 		expect(out).toContain('filename="r.bin"');
 		expect(out).toContain('see attached'); // body survives as the first part
 		expect(out).toContain(btoa(String.fromCharCode(...content))); // attachment bytes round-trip
+	});
+});
+
+describe('SMS gateway addressing (smsAddress)', () => {
+	it('computes the SMS address for known carriers', () => {
+		expect(smsAddress('5551234567', 'att')).toBe('5551234567@txt.att.net');
+		expect(smsAddress('5551234567', 'tmobile')).toBe('5551234567@tmomail.net');
+		expect(smsAddress('5551234567', 'verizon')).toBe('5551234567@vtext.com');
+		expect(smsAddress('5551234567', 'rogers')).toBe('5551234567@pcs.rogers.com');
+	});
+
+	it('computes the MMS address where the carrier uses a distinct domain', () => {
+		expect(smsAddress('5551234567', 'att', { type: 'mms' })).toBe('5551234567@mms.att.net');
+		expect(smsAddress('5551234567', 'verizon', { type: 'mms' })).toBe('5551234567@vzwpix.com');
+		expect(smsAddress('5551234567', 'sprint', { type: 'mms' })).toBe('5551234567@pm.sprint.com');
+	});
+
+	it('falls back to the SMS domain for MMS when no distinct MMS domain exists', () => {
+		// tmobile has no separate mms domain
+		expect(smsAddress('5551234567', 'tmobile', { type: 'mms' })).toBe('5551234567@tmomail.net');
+	});
+
+	it('normalizes messy numbers to digits only', () => {
+		expect(smsAddress('5551234567', 'att')).toBe('5551234567@txt.att.net');
+		expect(smsAddress('555.123.4567', 'att')).toBe('5551234567@txt.att.net');
+		expect(smsAddress('  555 123 4567  ', 'att')).toBe('5551234567@txt.att.net');
+		expect(smsAddress('555-123-4567', 'att')).toBe('5551234567@txt.att.net');
+		expect(smsAddress('555 1234567', 'att')).toBe('5551234567@txt.att.net');
+		expect(smsAddress('555.  123.     4567', 'att')).toBe('5551234567@txt.att.net');
+
+		expect(smsAddress('+1 (555) 123-4567', 'att')).toBe('15551234567@txt.att.net');
+		expect(smsAddress('+15551234567', 'att')).toBe('15551234567@txt.att.net');
+		expect(smsAddress('+1-555-123-4567', 'att')).toBe('15551234567@txt.att.net');
+		expect(smsAddress('+1.555.123.4567', 'att')).toBe('15551234567@txt.att.net');
+		expect(smsAddress('1 (555) 123-4567', 'att')).toBe('15551234567@txt.att.net');
+		expect(smsAddress('+1 5551234567', 'att')).toBe('15551234567@txt.att.net');
+		expect(smsAddress('+1 555 1234567', 'att')).toBe('15551234567@txt.att.net');
+	});
+
+	it('passes an unknown-but-plausible string through as a raw gateway domain', () => {
+		expect(smsAddress('5551234567', 'sms.example.net')).toBe('5551234567@sms.example.net');
+		// a raw domain ignores the type option (it is already a full gateway)
+		expect(smsAddress('5551234567', 'sms.example.net', { type: 'mms' })).toBe(
+			'5551234567@sms.example.net'
+		);
+	});
+
+	it('throws ProtocolError on an unknown carrier that is not a plausible domain', () => {
+		expect(() => smsAddress('5551234567', 'notacarrier')).toThrow(ProtocolError);
+	});
+
+	it('throws ProtocolError on an empty number', () => {
+		expect(() => smsAddress('', 'att')).toThrow(ProtocolError);
+		expect(() => smsAddress('()-  .', 'att')).toThrow(ProtocolError);
+	});
+});
+
+describe('CarrierGateways table', () => {
+	const domainRe = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+
+	it('gives every entry a non-empty sms domain that looks like a domain', () => {
+		for (const [key, gw] of Object.entries(CarrierGateways) as [string, CarrierGateway][]) {
+			expect(gw.sms, `${key}.sms`).toMatch(domainRe);
+			if (gw.mms !== undefined) expect(gw.mms, `${key}.mms`).toMatch(domainRe);
+		}
+	});
+
+	it('includes the required major carriers', () => {
+		for (const key of [
+			'att',
+			'tmobile',
+			'verizon',
+			'sprint',
+			'cricket',
+			'uscellular',
+			'metropcs',
+			'boost',
+			'virgin',
+			'googlefi',
+			'rogers',
+			'bell',
+			'telus',
+			'fido',
+			'koodo'
+		]) {
+			expect(CarrierGateways, key).toHaveProperty(key);
+		}
+	});
+});
+
+describe('SMS over email (sendSms addressing + envelope)', () => {
+	it('routes the RCPT TO envelope to the computed carrier gateway address', async () => {
+		const { socket, server } = mockConnection();
+		const received: Recorder = [];
+
+		// exactly what sendSms computes for this recipient
+		const recipient = smsAddress('+1 (555) 123-4567', 'att');
+
+		const serverScript = async () => {
+			await server.writeLine('220 gw ready');
+			received.push(await server.readLine()); // EHLO
+			await server.writeLine('250 ok');
+			received.push(await server.readLine()); // MAIL FROM
+			await server.writeLine('250 OK');
+			received.push(await server.readLine()); // RCPT TO
+			await server.writeLine('250 OK');
+			received.push(await server.readLine()); // DATA
+			await server.writeLine('354 go');
+			await readDataBody(server);
+			await server.writeLine('250 queued');
+		};
+
+		// mirrors sendSms: text-only body, empty subject, addressed to the gateway
+		const clientFlow = async () => {
+			const session = await _sessionFromSocket(socket, { hostname: 'h', tls: 'implicit' });
+			return session.send({
+				from: 'me@example.com',
+				to: recipient,
+				subject: '',
+				text: 'code 123456'
+			});
+		};
+
+		const [result] = await Promise.all([clientFlow(), serverScript()]);
+
+		expect(recipient).toBe('15551234567@txt.att.net');
+		expect(received).toContain('RCPT TO:<15551234567@txt.att.net>');
+		expect(result.accepted).toEqual(['15551234567@txt.att.net']);
+	});
+
+	it('rejects a bad carrier before opening a connection', async () => {
+		// smsAddress runs first, so this fails without touching the network
+		await expect(
+			sendSms({
+				hostname: 'smtp.example.com',
+				from: 'me@example.com',
+				to: { number: '5551234567', carrier: 'notacarrier' },
+				text: 'hi'
+			})
+		).rejects.toBeInstanceOf(ProtocolError);
 	});
 });
