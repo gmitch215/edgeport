@@ -25,6 +25,8 @@ edgeport is written for the Workers runtime from the ground up.
 - [FTP](#ftp)
 - [LDAP / LDAPS](#ldap--ldaps)
 - [Syslog](#syslog)
+- [SMPP](#smpp)
+- [Utilities](#utilities)
 - [Real-World Recipes](#real-world-recipes)
 - [Error Handling](#error-handling)
 - [Limitations](#limitations)
@@ -43,7 +45,7 @@ the runtime does not provide. edgeport is:
 - **Tree-Shakeable.** Import only the protocol you use (`edgeport/ssh`, `edgeport/smtp`, ...).
 - **Tested against Real Servers.** Every protocol is verified under `workerd` against
   Dockerized servers (OpenSSH, Dropbear, GreenMail, NATS with JetStream, Mosquitto, ActiveMQ,
-  OpenLDAP, an FTP server, and a WebSocket echo server) - not mocks.
+  OpenLDAP, an FTP server, an SMPP SMSC simulator, and a WebSocket echo server) - not mocks.
 
 ## Features
 
@@ -58,6 +60,9 @@ the runtime does not provide. edgeport is:
 - **FTP** (plaintext, passive mode): upload, download, list, and directory ops.
 - **LDAP / LDAPS** simple bind + search with RFC 4515 filters (BER codec, StartTLS).
 - **Syslog** RFC 5424 over TCP/TLS with octet-counting or LF framing.
+- **SMPP** v3.4 client (ESME): bind, `submit_sm`, and inbound `deliver_sm` / delivery receipts.
+- **Email-to-SMS** carrier-gateway addressing layered on SMTP (`sendSms`).
+- **Utilities** (`edgeport/util`): hex/base64 codecs, random ids, and retry-with-backoff.
 - One uniform error vocabulary: `AuthError`, `ConnectionError`, `ProtocolError`, `TimeoutError`.
 
 ### SSH algorithm support
@@ -453,6 +458,33 @@ await send({
 	attachments: [{ filename: 'report.csv', content: csvBytes, contentType: 'text/csv' }]
 });
 ```
+
+### Email-to-SMS Gateway
+
+Many carriers accept email at a gateway that forwards it to the handset as a text message.
+`sendSms` builds that gateway address from a phone number and a carrier - a known key from
+`CarrierGateways`, or a raw gateway domain - then sends a short plaintext message over the
+normal SMTP path.
+
+```typescript
+import { sendSms, smsAddress } from 'edgeport/smtp';
+
+// resolve the gateway address (number@gateway-domain), normalizing the number
+smsAddress('+1 (555) 123-4567', 'att'); // '15551234567@txt.att.net'
+
+await sendSms({
+	hostname: 'smtp.example.com',
+	auth: { username: 'me@example.com', password: env.SMTP_PW },
+	from: 'me@example.com',
+	to: { number: '5551234567', carrier: 'verizon' },
+	text: 'Your code is 123456'
+});
+```
+
+Coverage is US + Canadian carriers (`att`, `tmobile`, `verizon`, `sprint`, `cricket`,
+`rogers`, `bell`, `telus`, ...); pass a raw gateway domain for anything not listed. Gateway
+domains are best-effort and drift over time, so a raw-domain override is the escape hatch.
+Use `type: 'mms'` for a carrier's picture-message gateway where it differs.
 
 ## IMAP
 
@@ -987,6 +1019,101 @@ await using log = await connect({ hostname: 'logs.example.com', appName: 'edge-w
 await log.info('request handled');
 await log.warn('disk almost full', { facility: 'local0' });
 await log.error('request failed', { structuredData: [{ id: 'req@1', params: { code: '500' } }] });
+```
+
+## SMPP
+
+Send and receive SMS through a carrier's SMSC over SMPP v3.4. Bind as a transmitter, receiver,
+or transceiver; submit messages; and iterate inbound `deliver_sm`s - mobile-originated messages
+and delivery receipts - over the same session.
+
+```typescript
+import { connect } from 'edgeport/smpp';
+
+await using smpp = await connect({
+	hostname: 'smsc.example.com',
+	port: 2775,
+	systemId: 'esme',
+	password: env.SMPP_PW,
+	bindMode: 'transceiver'
+});
+
+// submit and get the SMSC message id back; request a delivery receipt
+const id = await smpp.submit({
+	source: 'EDGEPORT',
+	destination: '12065550111',
+	message: 'hello from the edge',
+	registeredDelivery: true
+});
+
+// iterate inbound messages and delivery receipts
+for await (const inbound of smpp.messages()) {
+	if (inbound.isDeliveryReceipt) {
+		const r = inbound.receipt();
+		if (r.id === id) console.log('delivered:', r.stat); // e.g. 'DELIVRD'
+	} else {
+		console.log('MO from', inbound.source, inbound.text());
+	}
+}
+```
+
+### One-shot Send SMS
+
+```typescript
+import { sendMessage } from 'edgeport/smpp';
+
+const id = await sendMessage({
+	hostname: 'smsc.example.com',
+	systemId: 'esme',
+	password: env.SMPP_PW,
+	source: 'EDGEPORT',
+	destination: '12065550111',
+	message: 'one-shot SMS from a Worker'
+});
+```
+
+### Unicode and Long Messages
+
+Pass `dataCoding: DataCoding.Ucs2` for non-GSM text (encoded UTF-16BE). A body over 254 octets
+is carried in a `message_payload` TLV automatically.
+
+```typescript
+import { connect, DataCoding } from 'edgeport/smpp';
+
+await using smpp = await connect({
+	hostname: 'smsc.example.com',
+	systemId: 'esme',
+	password: env.SMPP_PW
+});
+await smpp.submit({
+	destination: '12065550111',
+	message: 'こんにちは',
+	dataCoding: DataCoding.Ucs2
+});
+```
+
+TLS is implicit-only (`tls: 'implicit'`); SMPP has no in-band STARTTLS. The session sends
+periodic `enquire_link` keep-alives and answers the SMSC's, and `close()` unbinds cleanly.
+
+## Utilities
+
+`edgeport/util` is a small set of transport-free helpers the protocol modules share, published
+for consumers too: byte-encoding codecs, random ids off the CSPRNG, and a retry-with-backoff
+tuned to edgeport's error vocabulary.
+
+```typescript
+import { toHex, fromHex, toBase64, fromBase64, randomId, retry } from 'edgeport/util';
+
+toHex(new Uint8Array([0xde, 0xad])); // 'dead'
+toBase64(bytes, { urlSafe: true }); // url-safe, unpadded
+fromBase64('data:text/plain;base64,aGk='); // tolerant: strips the data-uri prefix, restores padding
+randomId('worker'); // 'worker-3f9a...'
+
+// retry only transient ConnectionError / TimeoutError - never AuthError / ProtocolError
+import { connect } from 'edgeport/ssh';
+const ssh = await retry(() => connect({ hostname: 'box', username: 'u', password: env.PW }), {
+	attempts: 4
+});
 ```
 
 ## Real-World Recipes
