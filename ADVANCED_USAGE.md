@@ -51,6 +51,8 @@ the values look like, and where they come from.
 | `SIEM`                                   | syslog collector host (RFC 5424 over TLS)            | `logs.example.com`                                       | your SIEM/log aggregator (Datadog, Splunk, rsyslog, ...) listening on 6514     |
 | `SMSC`                                   | SMPP SMSC host (carrier/aggregator or a simulator)   | `smsc.example.com`                                       | your SMS provider's SMPP endpoint (port 2775)                                  |
 | `SMPP_SYSTEM_ID` / `SMPP_PW`             | SMPP bind credentials (ESME system id + password)    | `esme` / a password                                      | issued by your SMS provider                                                    |
+| `SIP` / `SIP_DOMAIN`                     | SIP registrar/proxy host + served SIP domain         | `sip.example.com` / `example.com`                        | your PBX / SIP trunk (Asterisk, FreeSWITCH, Kamailio, Twilio/Telnyx)           |
+| `SIP_USER` / `SIP_PW`                    | SIP account username + password (digest)             | `alice` / a password                                     | your SIP provider / PBX account                                                |
 
 **Cloudflare Email Service (SMTP):** set `SMTP`/`MAIL` to `smtp.mx.cloudflare.net`, `tls: 'implicit'`
 (port 465), the username to the literal string `api_token`, and the password to a Cloudflare API
@@ -77,6 +79,7 @@ the [Cloudflare Email Service SMTP docs](https://developers.cloudflare.com/email
 | [Credential-Protecting Gateway](#credential-protecting-gateway) | LDAPS + SSH + SFTP + Syslog              | LDAPS fail-closed, no downgrade, server-identity gate            |
 | [Certificate Lifecycle](#certificate-lifecycle)                 | LDAPS + Syslog + SMTP                    | Cert validation fails closed -> alert + audit                    |
 | [Carrier SMS Delivery](#carrier-sms-delivery)                   | SMPP + SMS-over-email + Syslog + util    | Carrier SMPP delivery + receipt, email-gateway fallback, audit   |
+| [SIP Messaging & Alerting](#sip-messaging--alerting)            | SIP + Syslog                             | Register (RFC 5626), digest MESSAGE routing send+receive, audit  |
 
 ---
 
@@ -952,6 +955,71 @@ try {
 **Use case:** a resilient SMS sender that prefers a carrier SMPP link and falls back to the
 email-to-SMS gateway, with delivery confirmation and a full audit trail.
 
+## SIP Messaging & Alerting
+
+**Modules:** SIP + Syslog, [`sip.spec.ts`](./test/integration/recipes/sip.spec.ts)
+
+### Prerequisites
+
+- **SIP server** `SIP` + `SIP_USER`/`SIP_PW`: a SIP registrar/proxy on 5060 (Asterisk, FreeSWITCH, Kamailio, OpenSIPS, or a cloud SIP trunk) that routes `MESSAGE` between registered users.
+- **Syslog collector** `SIEM`: the audit trail.
+
+See [Environment & Services](#environment--services) for value formats and how to obtain each.
+
+Deliver an alert to an on-call endpoint over SIP: both sides register with RFC 5626 outbound (so
+a listen-less Worker receives inbound requests on its own connection), the sender delivers a
+pager-mode `MESSAGE` (RFC 3428, digest-authenticated and routed by the proxy), the on-call side
+receives it on its registered flow, and every step is audited to Syslog. SIP + MSRP are the chat
+protocols RCS rides on, so this is the RCS-family messaging path against open SIP infrastructure -
+it does not reach carrier RCS handsets.
+
+```typescript
+import { connect as sipConnect } from 'edgeport/sip';
+import { connect as syslogConnect } from 'edgeport/syslog';
+
+await using audit = await syslogConnect({
+	hostname: env.SIEM,
+	port: 6514,
+	tls: 'implicit',
+	appName: 'sip-alerts'
+});
+
+// the on-call endpoint registers and listens for inbound MESSAGEs on its flow
+await using oncall = await sipConnect({
+	hostname: env.SIP,
+	domain: env.SIP_DOMAIN,
+	username: 'oncall',
+	password: env.SIP_PW
+});
+await oncall.register();
+
+// the sender registers and delivers the alert (the proxy challenges + routes it)
+await using sender = await sipConnect({
+	hostname: env.SIP,
+	domain: env.SIP_DOMAIN,
+	username: 'alerts',
+	password: env.SIP_PW
+});
+await sender.register();
+await sender.message('oncall', 'ALERT disk almost full');
+await audit.info('sip alert sent');
+
+for await (const m of oncall.messages()) {
+	await audit.info(`sip alert received from ${m.from}`);
+	break; // handle m.text() here
+}
+```
+
+> The spec registers two endpoints against the Dockerized Kamailio (`docker/sip`, realm
+> `edgeport.test`), routes a digest-authenticated `MESSAGE` between them, confirms the on-call
+> side receives it on its outbound flow, and asserts the ordered register -> send -> receive
+> trail on the syslog readback sink. A long-lived registration belongs in a Durable Object (an
+> open socket keeps a DO alive ~15 min; the session refreshes REGISTER, and you reconnect on a
+> DO alarm).
+
+**Use case:** routing alerts/notifications and two-way messaging over SIP to PBXs, softphones,
+and SIP trunks from a Worker.
+
 ---
 
 ## Notes on Test Infrastructure
@@ -967,3 +1035,10 @@ email-to-SMS gateway, with delivery confirmation and a full audit trail.
   `submit_sm`, and emits a delivery-receipt `deliver_sm` (`stat:DELIVRD`) a couple of seconds
   after a `submit_sm` that set `registered_delivery`; mobile-originated messages can be injected
   via its HTTP form on `:12775`.
+- **SIP:** a Kamailio 5.6 registrar/proxy (`docker/sip`, built at runtime on a digest-pinned
+  Debian base) challenges digest in realm `edgeport.test` (creds `tester`/`testpass`, a
+  realm-static password so any username binds), accepts RFC 5626 outbound registrations, and
+  routes `MESSAGE` between registered AORs over TCP 5060. Its MSRP relay listens on 2855. MSRP
+  session-mode chat is unit-tested at the codec level; end-to-end MSRP through the relay needs
+  the relay's AUTH handshake (a documented follow-up), so the integration suite covers the SIP
+  signaling + pager-mode MESSAGE path.
