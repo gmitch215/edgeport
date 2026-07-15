@@ -1,0 +1,179 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>CommandStatus | edgeport - v1.0.3</title><meta name="description" content="Documentation for edgeport"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="../index.html" class="title">edgeport - v1.0.3</a>
+<div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<ul class="tsd-breadcrumb" aria-label="Breadcrumb">
+<li><a href="../modules/smpp.html">smpp</a></li>
+<li><a href="" aria-current="page">CommandStatus</a></li></ul>
+<h1>Enumeration CommandStatus</h1></div>
+<section class="tsd-panel tsd-comment">
+<div class="tsd-comment tsd-typography"><p>SMPP <code>command_status</code> values (v3.4), the subset edgeport surfaces.</p>
+<p><code>ESME_ROK</code> (0) is success; any other value in a response indicates the SMSC rejected the
+request. The bind-related password / system-id / bind-failed codes map to an <code>AuthError</code>
+in the session layer; the rest map to a <code>ProtocolError</code>.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-since">
+<h4 class="tsd-anchor-link" id="since">Since<a href="#since" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>1.0.3</p>
+</div></div></section><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L92">src/smpp/pdu.ts:92</a></li></ul></aside>
+<section class="tsd-panel-group tsd-index-group">
+<section class="tsd-panel tsd-index-panel">
+<details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h5 class="tsd-index-heading uppercase">Index</h5></summary>
+<div class="tsd-accordion-details">
+<section class="tsd-index-section">
+<h3 class="tsd-index-heading tsd-anchor-link" id="enumeration-members">Enumeration Members<a href="#enumeration-members" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-index-list"><a href="#esme_ralybnd" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RALYBND</span></a>
+<a href="#esme_rbindfail" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RBINDFAIL</span></a>
+<a href="#esme_rinvbndsts" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVBNDSTS</span></a>
+<a href="#esme_rinvcmdid" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVCMDID</span></a>
+<a href="#esme_rinvcmdlen" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVCMDLEN</span></a>
+<a href="#esme_rinvdstadr" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVDSTADR</span></a>
+<a href="#esme_rinvmsglen" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVMSGLEN</span></a>
+<a href="#esme_rinvpaswd" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVPASWD</span></a>
+<a href="#esme_rinvsrcadr" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVSRCADR</span></a>
+<a href="#esme_rinvsysid" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVSYSID</span></a>
+<a href="#esme_rok" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>ROK</span></a>
+<a href="#esme_rsubmitfail" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RSUBMITFAIL</span></a>
+<a href="#esme_rsyserr" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RSYSERR</span></a>
+<a href="#esme_rthrottled" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RTHROTTLED</span></a>
+<a href="#esme_runknownerr" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RUNKNOWNERR</span></a>
+</div></section></div></details></section></section>
+<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Enumeration Members"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h2 class="tsd-anchor-link" id="enumeration-members-1">Enumeration Members<a href="#enumeration-members-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
+<section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_ralybnd"><span>ESME_<wbr/>RALYBND</span><a href="#esme_ralybnd" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RALYBND</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">5</span></div>
+<div class="tsd-comment tsd-typography"><p>ESME is already bound.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L104">src/smpp/pdu.ts:104</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rbindfail"><span>ESME_<wbr/>RBINDFAIL</span><a href="#esme_rbindfail" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RBINDFAIL</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">13</span></div>
+<div class="tsd-comment tsd-typography"><p>Bind failed.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L112">src/smpp/pdu.ts:112</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvbndsts"><span>ESME_<wbr/>RINVBNDSTS</span><a href="#esme_rinvbndsts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVBNDSTS</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">4</span></div>
+<div class="tsd-comment tsd-typography"><p>Incorrect bind status for the given command.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L102">src/smpp/pdu.ts:102</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvcmdid"><span>ESME_<wbr/>RINVCMDID</span><a href="#esme_rinvcmdid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVCMDID</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">3</span></div>
+<div class="tsd-comment tsd-typography"><p>Invalid command id.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L100">src/smpp/pdu.ts:100</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvcmdlen"><span>ESME_<wbr/>RINVCMDLEN</span><a href="#esme_rinvcmdlen" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVCMDLEN</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">2</span></div>
+<div class="tsd-comment tsd-typography"><p>Command length is invalid.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L98">src/smpp/pdu.ts:98</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvdstadr"><span>ESME_<wbr/>RINVDSTADR</span><a href="#esme_rinvdstadr" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVDSTADR</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">11</span></div>
+<div class="tsd-comment tsd-typography"><p>Invalid destination address.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L110">src/smpp/pdu.ts:110</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvmsglen"><span>ESME_<wbr/>RINVMSGLEN</span><a href="#esme_rinvmsglen" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVMSGLEN</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">1</span></div>
+<div class="tsd-comment tsd-typography"><p>Message length is invalid.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L96">src/smpp/pdu.ts:96</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvpaswd"><span>ESME_<wbr/>RINVPASWD</span><a href="#esme_rinvpaswd" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVPASWD</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">14</span></div>
+<div class="tsd-comment tsd-typography"><p>Invalid password.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L114">src/smpp/pdu.ts:114</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvsrcadr"><span>ESME_<wbr/>RINVSRCADR</span><a href="#esme_rinvsrcadr" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVSRCADR</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">10</span></div>
+<div class="tsd-comment tsd-typography"><p>Invalid source address.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L108">src/smpp/pdu.ts:108</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rinvsysid"><span>ESME_<wbr/>RINVSYSID</span><a href="#esme_rinvsysid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RINVSYSID</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">15</span></div>
+<div class="tsd-comment tsd-typography"><p>Invalid system id.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L116">src/smpp/pdu.ts:116</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rok"><span>ESME_<wbr/>ROK</span><a href="#esme_rok" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_ROK</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">0</span></div>
+<div class="tsd-comment tsd-typography"><p>No error.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L94">src/smpp/pdu.ts:94</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rsubmitfail"><span>ESME_<wbr/>RSUBMITFAIL</span><a href="#esme_rsubmitfail" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RSUBMITFAIL</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">69</span></div>
+<div class="tsd-comment tsd-typography"><p>submit_sm or submit_multi failed.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L118">src/smpp/pdu.ts:118</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rsyserr"><span>ESME_<wbr/>RSYSERR</span><a href="#esme_rsyserr" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RSYSERR</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">8</span></div>
+<div class="tsd-comment tsd-typography"><p>System error.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L106">src/smpp/pdu.ts:106</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_rthrottled"><span>ESME_<wbr/>RTHROTTLED</span><a href="#esme_rthrottled" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RTHROTTLED</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">88</span></div>
+<div class="tsd-comment tsd-typography"><p>Throttling error (ESME exceeded its allowed message rate).</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L120">src/smpp/pdu.ts:120</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="esme_runknownerr"><span>ESME_<wbr/>RUNKNOWNERR</span><a href="#esme_runknownerr" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-enum-member">ESME_RUNKNOWNERR</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">255</span></div>
+<div class="tsd-comment tsd-typography"><p>Unknown error.</p>
+</div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/smpp/pdu.ts#L122">src/smpp/pdu.ts:122</a></li></ul></aside></section></section></details></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>On This Page</h3></summary>
+<div class="tsd-accordion-details">
+<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Enumeration Members"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Enumeration Members</summary>
+<div><a href="#esme_ralybnd"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RALYBND</span></a><a href="#esme_rbindfail"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RBINDFAIL</span></a><a href="#esme_rinvbndsts"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVBNDSTS</span></a><a href="#esme_rinvcmdid"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVCMDID</span></a><a href="#esme_rinvcmdlen"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVCMDLEN</span></a><a href="#esme_rinvdstadr"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVDSTADR</span></a><a href="#esme_rinvmsglen"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVMSGLEN</span></a><a href="#esme_rinvpaswd"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVPASWD</span></a><a href="#esme_rinvsrcadr"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVSRCADR</span></a><a href="#esme_rinvsysid"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RINVSYSID</span></a><a href="#esme_rok"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>ROK</span></a><a href="#esme_rsubmitfail"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RSUBMITFAIL</span></a><a href="#esme_rsyserr"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RSYSERR</span></a><a href="#esme_rthrottled"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RTHROTTLED</span></a><a href="#esme_runknownerr"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Enumeration Member"><use href="../assets/icons.svg#icon-16"></use></svg><span>ESME_<wbr/>RUNKNOWNERR</span></a></div></details></div></details></div>
+<div class="site-menu">
+<nav class="tsd-navigation"><a href="../modules.html">edgeport - v1.0.3</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer>
+<p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer>
+<div class="overlay"></div></body></html>
