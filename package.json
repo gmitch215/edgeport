@@ -122,7 +122,7 @@
 		"prettier": "^3.9.5",
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"typedoc": "^0.28.20",
-		"typescript": "^6.0.3",
+		"typescript": "^7.0.0",
 		"vitest": "^4.1.10",
 		"wrangler": "^4.110.0"
 	},
