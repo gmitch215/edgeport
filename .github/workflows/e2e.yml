@@ -38,7 +38,10 @@ jobs:
         run: |
           sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"
           sudo sysctl -w net.ipv4.tcp_tw_reuse=1
-          sudo sysctl -w net.ipv4.tcp_fin_timeout=15
+          sudo sysctl -w net.ipv4.tcp_fin_timeout=10
+          sudo sysctl -w net.ipv4.tcp_max_tw_buckets=2000000
+          sudo sysctl -w net.core.somaxconn=4096
+          sudo sysctl -w net.ipv4.tcp_max_syn_backlog=4096
       - name: Run Integration Tests
         uses: nick-fields/retry@v4
         env:
@@ -46,6 +49,7 @@ jobs:
         with:
           timeout_minutes: 15
           max_attempts: 3
+          retry_wait_seconds: 75
           command: bunx vitest run --coverage --reporter=default --reporter=junit --outputFile=test-report.junit.xml
       - name: Upload Coverage to Codecov
         if: ${{ !cancelled() }}
