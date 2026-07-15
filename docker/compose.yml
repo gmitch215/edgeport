@@ -100,6 +100,11 @@ services:
 
   stomp:
     image: rmohr/activemq@sha256:b5669f141ac5c455b1010b90d348fe78289bba7e2db5659484d99736b696593c
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/8161']
+      interval: 3s
+      timeout: 3s
+      retries: 60
     ports:
       - '127.0.0.1:61613:61613'
 
@@ -123,3 +128,18 @@ services:
     ports:
       - '127.0.0.1:2775:2775' # smpp
       - '127.0.0.1:12775:12775' # http MO injection
+
+  sip:
+    image: debian:bookworm-slim@sha256:7b140f374b289a7c2befc338f42ebe6441b7ea838a042bbd5acbfca6ec875818
+    entrypoint: ['/bin/sh', '/entrypoint.sh']
+    volumes:
+      - ./sip/kamailio.cfg:/sip/kamailio.cfg:ro
+      - ./sip/entrypoint.sh:/entrypoint.sh:ro
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/5060']
+      interval: 3s
+      timeout: 3s
+      retries: 60
+    ports:
+      - '127.0.0.1:5060:5060/tcp' # sip over tcp (the workers transport)
+      - '127.0.0.1:2855:2855/tcp' # msrp relay
