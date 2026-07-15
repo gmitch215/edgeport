@@ -19,6 +19,7 @@ const entries = {
 	ldaps: 'src/ldaps/index.ts',
 	syslog: 'src/syslog/index.ts',
 	smpp: 'src/smpp/index.ts',
+	sip: 'src/sip/index.ts',
 	util: 'src/util/index.ts',
 	// building-block subpaths (edgeport/wire, /crypto, /kex, /auth)
 	wire: 'src/wire.ts',

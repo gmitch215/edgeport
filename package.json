@@ -73,6 +73,10 @@
 			"types": "./dist/util/index.d.ts",
 			"import": "./dist/util/index.js"
 		},
+		"./sip": {
+			"types": "./dist/sip/index.d.ts",
+			"import": "./dist/sip/index.js"
+		},
 		"./wire": {
 			"types": "./dist/wire.d.ts",
 			"import": "./dist/wire.js"

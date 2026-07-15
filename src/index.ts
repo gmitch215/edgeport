@@ -25,6 +25,7 @@ export * as mqtt from './mqtt';
 export * as nats from './nats';
 export * as pop3 from './pop3';
 export * as sftp from './sftp';
+export * as sip from './sip';
 export * as smpp from './smpp';
 export * as smtp from './smtp';
 export * as ssh from './ssh';
