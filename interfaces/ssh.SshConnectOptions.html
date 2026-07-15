@@ -16,7 +16,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">SshConnectOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#algorithms">algorithms</a><span class="tsd-signature-symbol">?:</span> <a href="kex.AlgorithmPrefs.html" class="tsd-signature-type tsd-kind-interface">AlgorithmPrefs</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#hostkey">hostKey</a><span class="tsd-signature-symbol">?:</span> <a href="ssh.HostKeyVerifier.html" class="tsd-signature-type tsd-kind-interface">HostKeyVerifier</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#hostname">hostname</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#onkeyboardinteractive">onKeyboardInteractive</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">prompts</span><span class="tsd-signature-symbol">:</span> <a href="auth.KeyboardPrompt.html" class="tsd-signature-type tsd-kind-interface">KeyboardPrompt</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#password">password</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#port">port</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#privatekey">privateKey</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">CryptoKey</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">passphrase</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">pem</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#rekeythresholdbytes">rekeyThresholdBytes</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#timeoutms">timeoutMs</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#username">username</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L47">src/ssh/index.ts:47</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L47">src/ssh/index.ts:47</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -44,70 +44,70 @@
 <div class="tsd-comment tsd-typography"><p>Algorithm preference overrides (e.g. to force a cipher).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L63">src/ssh/index.ts:63</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L63">src/ssh/index.ts:63</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="hostkey"><code class="tsd-tag">Optional</code><span>host<wbr/>Key</span><a href="#hostkey" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hostKey</span><span class="tsd-signature-symbol">?:</span> <a href="ssh.HostKeyVerifier.html" class="tsd-signature-type tsd-kind-interface">HostKeyVerifier</a></div>
 <div class="tsd-comment tsd-typography"><p>Host-key pinning hook (TOFU if omitted; the host signature is always verified).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L61">src/ssh/index.ts:61</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L61">src/ssh/index.ts:61</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="hostname"><span>hostname</span><a href="#hostname" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hostname</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Host to connect to.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L49">src/ssh/index.ts:49</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L49">src/ssh/index.ts:49</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="onkeyboardinteractive"><code class="tsd-tag">Optional</code><span>on<wbr/>Keyboard<wbr/>Interactive</span><a href="#onkeyboardinteractive" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">onKeyboardInteractive</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">prompts</span><span class="tsd-signature-symbol">:</span> <a href="auth.KeyboardPrompt.html" class="tsd-signature-type tsd-kind-interface">KeyboardPrompt</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>Callback answering keyboard-interactive prompts.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L59">src/ssh/index.ts:59</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L59">src/ssh/index.ts:59</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="password"><code class="tsd-tag">Optional</code><span>password</span><a href="#password" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">password</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Password for password authentication.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L55">src/ssh/index.ts:55</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L55">src/ssh/index.ts:55</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="port"><code class="tsd-tag">Optional</code><span>port</span><a href="#port" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">port</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>TCP port (default 22).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L51">src/ssh/index.ts:51</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L51">src/ssh/index.ts:51</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="privatekey"><code class="tsd-tag">Optional</code><span>private<wbr/>Key</span><a href="#privatekey" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">privateKey</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">CryptoKey</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">passphrase</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">pem</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>Private key for publickey authentication (PKCS8 PEM or an extractable CryptoKey).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L57">src/ssh/index.ts:57</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L57">src/ssh/index.ts:57</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="rekeythresholdbytes"><code class="tsd-tag">Optional</code><span>rekey<wbr/>Threshold<wbr/>Bytes</span><a href="#rekeythresholdbytes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">rekeyThresholdBytes</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Auto re-exchange keys after roughly this many bytes (default 1 GiB; 0 disables).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L67">src/ssh/index.ts:67</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L67">src/ssh/index.ts:67</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="timeoutms"><code class="tsd-tag">Optional</code><span>timeout<wbr/>Ms</span><a href="#timeoutms" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">timeoutMs</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Connect timeout in milliseconds.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L65">src/ssh/index.ts:65</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L65">src/ssh/index.ts:65</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="username"><span>username</span><a href="#username" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">username</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Login username.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/193738136d9f8a866f67c2c2f8eaf8b6e21e483d/src/ssh/index.ts#L53">src/ssh/index.ts:53</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/0e1212ba15d0984e89282aacec4e89415ef71a5c/src/ssh/index.ts#L53">src/ssh/index.ts:53</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
