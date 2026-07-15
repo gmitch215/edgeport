@@ -508,9 +508,11 @@ await send({
 });
 ```
 
-> The recipe calls for active-mode + ASCII (TYPE A) FTP; edgeport FTP is passive-only (Workers
-> can't accept inbound connections) and byte-verbatim, so passive mode is used and ASCII
-> correctness is proven by round-tripping CRLF records byte-exact - noted in the spec.
+> The recipe calls for active-mode FTP; edgeport FTP is passive-only (Workers can't accept
+> inbound connections), so passive mode is used. The CRLF-terminated fixed-width records are
+> forwarded in BINARY mode and asserted byte-exact end to end - preserving them verbatim is a
+> binary-transfer property, since a spec-compliant FTP server normalizes CRLF in ASCII (TYPE A)
+> mode.
 
 **Use case:** legacy ERP/mainframe file exchange bridged to modern secure transfer.
 
