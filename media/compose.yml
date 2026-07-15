@@ -1,6 +1,6 @@
 services:
   openssh:
-    image: linuxserver/openssh-server@sha256:67d4c3a1402179a6579aa217a38b52ced557eb8a0c17a8e32fe986a4549fdee4
+    image: linuxserver/openssh-server@sha256:204b64775f7dfb17761ed0644df348ba3cd811628334cc723aa69d61f4db893d
     environment:
       PUID: '1000'
       PGID: '1000'
