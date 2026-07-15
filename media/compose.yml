@@ -58,17 +58,23 @@ services:
       - '127.0.0.1:4222:4222'
 
   ftp:
-    image: garethflowers/ftp-server@sha256:f8017bd2d99ee5d71e89a7111d61709f86a793c4597c3b84b4472a6c69d89237
+    image: stilliard/pure-ftpd@sha256:41c9aaded1fd06053c500d28415613ca7605ecc39a3e1c2ec4f0a279bd78f253
     environment:
-      FTP_USER: 'tester'
-      FTP_PASS: 'testpass'
+      PUBLICHOST: '127.0.0.1'
+      FTP_USER_NAME: 'tester'
+      FTP_USER_PASS: 'testpass'
+      FTP_USER_HOME: '/home/ftpusers/tester'
+      FTP_PASSIVE_PORTS: '40000:40009'
+    healthcheck:
+      test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/21']
+      interval: 3s
+      timeout: 3s
+      retries: 40
     ports:
       - '127.0.0.1:21:21'
       - '127.0.0.1:40000-40009:40000-40009'
 
   openldap:
-    # pinned: digests past this one break edgeport's plaintext LDAP bind under workerd
-    # (the bind connection is dropped before the response); Renovate is told to leave it alone
     image: osixia/openldap@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
     environment:
       LDAP_ORGANISATION: 'edgeport'

@@ -412,9 +412,11 @@ email goes out over SMTP at the end.</p>
 </code><button type="button">Copy</button></pre>
 
 <blockquote>
-<p>The recipe calls for active-mode + ASCII (TYPE A) FTP; edgeport FTP is passive-only (Workers
-can't accept inbound connections) and byte-verbatim, so passive mode is used and ASCII
-correctness is proven by round-tripping CRLF records byte-exact - noted in the spec.</p>
+<p>The recipe calls for active-mode FTP; edgeport FTP is passive-only (Workers can't accept
+inbound connections), so passive mode is used. The CRLF-terminated fixed-width records are
+forwarded in BINARY mode and asserted byte-exact end to end - preserving them verbatim is a
+binary-transfer property, since a spec-compliant FTP server normalizes CRLF in ASCII (TYPE A)
+mode.</p>
 </blockquote>
 <p><strong>Use case:</strong> legacy ERP/mainframe file exchange bridged to modern secure transfer.</p>
 <h2 id="passive-ftp-monitoring" class="tsd-anchor-link">Passive-FTP Monitoring<a href="#passive-ftp-monitoring" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2>
