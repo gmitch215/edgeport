@@ -16,7 +16,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">ConnectOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#cleansession">cleanSession</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#clientid">clientId</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#keepaliveseconds">keepAliveSeconds</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#password">password</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBufferLike</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#username">username</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#will">will</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span><br/>        <span class="tsd-kind-property">payload</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBufferLike</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-property">qos</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">0</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">1</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">2</span><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-property">retain</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-property">topic</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/mqtt/packet.ts#L63">src/mqtt/packet.ts:63</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/5beebd7a4c971ea30eb7da904f810e3ebb5c929d/src/mqtt/packet.ts#L63">src/mqtt/packet.ts:63</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -40,42 +40,42 @@
 <div class="tsd-comment tsd-typography"><p>Whether the broker should discard any prior session state for this client.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/mqtt/packet.ts#L69">src/mqtt/packet.ts:69</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/5beebd7a4c971ea30eb7da904f810e3ebb5c929d/src/mqtt/packet.ts#L69">src/mqtt/packet.ts:69</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="clientid"><span>client<wbr/>Id</span><a href="#clientid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">clientId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Client identifier; may be empty when the broker assigns one (requires <code>cleanSession</code>).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/mqtt/packet.ts#L65">src/mqtt/packet.ts:65</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/5beebd7a4c971ea30eb7da904f810e3ebb5c929d/src/mqtt/packet.ts#L65">src/mqtt/packet.ts:65</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="keepaliveseconds"><span>keep<wbr/>Alive<wbr/>Seconds</span><a href="#keepaliveseconds" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">keepAliveSeconds</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Keep-alive interval in seconds advertised to the broker (0 disables it).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/mqtt/packet.ts#L67">src/mqtt/packet.ts:67</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/5beebd7a4c971ea30eb7da904f810e3ebb5c929d/src/mqtt/packet.ts#L67">src/mqtt/packet.ts:67</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="password"><code class="tsd-tag">Optional</code><span>password</span><a href="#password" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">password</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBufferLike</span><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>Optional password; encoded as bytes (a string is treated as UTF-8).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/mqtt/packet.ts#L73">src/mqtt/packet.ts:73</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/5beebd7a4c971ea30eb7da904f810e3ebb5c929d/src/mqtt/packet.ts#L73">src/mqtt/packet.ts:73</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="username"><code class="tsd-tag">Optional</code><span>username</span><a href="#username" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">username</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Optional username for credential auth.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/mqtt/packet.ts#L71">src/mqtt/packet.ts:71</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/5beebd7a4c971ea30eb7da904f810e3ebb5c929d/src/mqtt/packet.ts#L71">src/mqtt/packet.ts:71</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="will"><code class="tsd-tag">Optional</code><span>will</span><a href="#will" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">will</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span><br/>    <span class="tsd-kind-property">payload</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBufferLike</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">qos</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">0</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">1</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">2</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">retain</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">topic</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
 <div class="tsd-comment tsd-typography"><p>Optional Last Will and Testament the broker publishes if the client drops ungracefully.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/8284ca379673033b37857724df35a60e72c07a73/src/mqtt/packet.ts#L75">src/mqtt/packet.ts:75</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/5beebd7a4c971ea30eb7da904f810e3ebb5c929d/src/mqtt/packet.ts#L75">src/mqtt/packet.ts:75</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
