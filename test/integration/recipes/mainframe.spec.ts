@@ -5,11 +5,12 @@
 // dockerized servers.
 //
 // notes vs the classic recipe:
-// - the legacy leg uses PLAIN ftp in ASCII mode (TYPE A) via `{ type: 'ascii' }`. transfers
-//   are PASSIVE-only by design - the Workers runtime cannot accept inbound connections, so
-//   active/PORT mode is impossible; passive is the only mode edgeport ftp offers. we
-//   round-trip CRLF-terminated fixed-width records and assert they survive byte-exact end to
-//   end (ftp put -> ftp get -> sftp put -> sftp read).
+// - the legacy leg uses PLAIN ftp in BINARY mode. transfers are PASSIVE-only by design - the
+//   Workers runtime cannot accept inbound connections, so active/PORT mode is impossible;
+//   passive is the only mode edgeport ftp offers. the CRLF-terminated fixed-width records must
+//   survive byte-exact end to end (ftp put -> ftp get -> sftp put -> sftp read), which is a
+//   binary-transfer property: a spec-compliant FTP server normalizes CRLF<->LF in ascii/TYPE A
+//   mode, so binary is the correct mode for preserving fixed-width records verbatim.
 // - greenmail smtp is plaintext on 3025; the public connect() only offers starttls|implicit,
 //   so (matching mail.spec.ts / ci.spec.ts) we open a plaintext core socket and hand it to
 //   _sessionFromSocket with tls:'implicit' (meaning "no upgrade, socket already usable").
@@ -113,7 +114,7 @@ describe('recipe: mainframe nightly batch (ftp -> sftp, syslog + smtp)', () => {
 		// 1. legacy push: store the fixed-width file over PLAIN ftp into the landing zone.
 		{
 			await using ftp = await ftpConnect(ftpCreds);
-			await ftp.put(landedName, original, { type: 'ascii' }); // legacy ASCII (TYPE A) leg
+			await ftp.put(landedName, original); // binary: preserve the CRLF fixed-width records verbatim
 			// confirm it landed and is the exact byte length we pushed
 			expect(await ftp.size(landedName)).toBe(original.length);
 		}
@@ -125,7 +126,7 @@ describe('recipe: mainframe nightly batch (ftp -> sftp, syslog + smtp)', () => {
 		let forwarded: Uint8Array;
 		{
 			await using ftp = await ftpConnect(ftpCreds);
-			const delivered = await ftp.get(landedName, { type: 'ascii' });
+			const delivered = await ftp.get(landedName);
 			expect(delivered).toEqual(original); // ftp round-trip is byte-exact
 
 			await using sftp = await sftpConnect(sftpCreds);

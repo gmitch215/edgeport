@@ -35,6 +35,11 @@ jobs:
       - name: Boot Integration Servers
         run: docker compose -f docker/compose.yml up -d --wait
       - name: Tune TCP for High Localhost Connection Churn
+        # general hardening for the volume of short-lived localhost connections the suite opens
+        # (widen the ephemeral-port range, reuse/drain TIME_WAIT, enlarge the accept/SYN backlogs).
+        # NOTE: the historic "FTP flakiness" was NOT port exhaustion - it was the Alpine/musl vsftpd
+        # image segfaulting under the passive-heavy FTP load; that is fixed in docker/compose.yml by
+        # using pure-ftpd. these sysctls are kept as cheap defense-in-depth, not the fix.
         run: |
           sudo sysctl -w net.ipv4.ip_local_port_range="1024 65535"
           sudo sysctl -w net.ipv4.tcp_tw_reuse=1
@@ -48,8 +53,10 @@ jobs:
           INTEGRATION: '1'
         with:
           timeout_minutes: 15
+          # retry is a backstop for transient boot/timing hiccups; the FTP server crash that used
+          # to make retries pointless is fixed at the container level, so a short wait is enough
           max_attempts: 3
-          retry_wait_seconds: 75
+          retry_wait_seconds: 20
           command: bunx vitest run --coverage --reporter=default --reporter=junit --outputFile=test-report.junit.xml
       - name: Upload Coverage to Codecov
         if: ${{ !cancelled() }}

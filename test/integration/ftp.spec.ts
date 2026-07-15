@@ -27,20 +27,22 @@ it('rejects bad credentials with an error', async () => {
 	await expect(connect({ ...base, password: 'wrong' })).rejects.toBeTruthy();
 });
 
-it('transfers a CRLF text file in ascii mode (TYPE A)', async () => {
+it('transfers a text file in ascii mode (TYPE A)', async () => {
 	await using ftp = await connect(base);
 	const path = `edgeport-ascii-${Math.floor(Date.now()).toString(36)}.txt`;
-	// CRLF source text; on a Linux server (native LF) TYPE A is a no-op vs TYPE I, so the
-	// point of this test is that TYPE A is issued, accepted, and the round-trip still works
 	const body = new TextEncoder().encode('line one\r\nline two\r\nline three\r\n');
+	// a spec-compliant server normalizes CRLF<->LF in ascii mode (TYPE A), so assert the LINE
+	// CONTENT round-trips, not the raw CR bytes - the point is that TYPE A is issued, accepted,
+	// and the text survives. byte-exact preservation is a binary concern (see the mainframe recipe).
+	const lines = (b: Uint8Array) => new TextDecoder().decode(b).replace(/\r\n/g, '\n');
 
 	await ftp.put(path, body, { type: 'ascii' });
 	const got = await ftp.get(path, { type: 'ascii' });
-	expect(Array.from(got)).toEqual(Array.from(body));
+	expect(lines(got)).toBe(lines(body));
 
-	// a following binary transfer still works after the session switched to ascii and back
+	// the session still works for a following binary transfer after switching ascii -> binary
 	const bin = await ftp.get(path);
-	expect(Array.from(bin)).toEqual(Array.from(body));
+	expect(lines(bin)).toBe(lines(body));
 
 	await ftp.delete(path);
 });
