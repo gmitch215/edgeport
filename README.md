@@ -26,6 +26,7 @@ edgeport is written for the Workers runtime from the ground up.
 - [LDAP / LDAPS](#ldap--ldaps)
 - [Syslog](#syslog)
 - [SMPP](#smpp)
+- [SIP (RCS)](#sip-rcs)
 - [Utilities](#utilities)
 - [Real-World Recipes](#real-world-recipes)
 - [Error Handling](#error-handling)
@@ -45,7 +46,8 @@ the runtime does not provide. edgeport is:
 - **Tree-Shakeable.** Import only the protocol you use (`edgeport/ssh`, `edgeport/smtp`, ...).
 - **Tested against Real Servers.** Every protocol is verified under `workerd` against
   Dockerized servers (OpenSSH, Dropbear, GreenMail, NATS with JetStream, Mosquitto, ActiveMQ,
-  OpenLDAP, an FTP server, an SMPP SMSC simulator, and a WebSocket echo server) - not mocks.
+  OpenLDAP, an FTP server, an SMPP SMSC simulator, a Kamailio SIP server, and a WebSocket echo
+  server) - not mocks.
 
 ## Features
 
@@ -61,6 +63,7 @@ the runtime does not provide. edgeport is:
 - **LDAP / LDAPS** simple bind + search with RFC 4515 filters (BER codec, StartTLS).
 - **Syslog** RFC 5424 over TCP/TLS with octet-counting or LF framing.
 - **SMPP** v3.4 client (ESME): bind, `submit_sm`, and inbound `deliver_sm` / delivery receipts.
+- **SIP / RCS** user agent over TCP/TLS: register, `MESSAGE`, `OPTIONS`, presence, and MSRP chat.
 - **Email-to-SMS** carrier-gateway addressing layered on SMTP (`sendSms`).
 - **Utilities** (`edgeport/util`): hex/base64 codecs, random ids, and retry-with-backoff.
 - One uniform error vocabulary: `AuthError`, `ConnectionError`, `ProtocolError`, `TimeoutError`.
@@ -1094,6 +1097,85 @@ await smpp.submit({
 
 TLS is implicit-only (`tls: 'implicit'`); SMPP has no in-band STARTTLS. The session sends
 periodic `enquire_link` keep-alives and answers the SMSC's, and `close()` unbinds cleanly.
+
+## SIP (RCS)
+
+A SIP user agent over raw TCP/TLS: register, send and receive messages, probe capabilities,
+subscribe to presence, and run MSRP chat sessions. SIP + MSRP are the protocols the chat side
+of **RCS** (the GSMA Universal Profile) rides on, so this is edgeport's RCS-family client - but
+it targets **open SIP infrastructure** (Asterisk, FreeSWITCH, Kamailio, OpenSIPS, and cloud SIP
+trunks like Twilio / Telnyx / Flowroute), not carrier RCS.
+
+> [!NOTE]
+> This is a signaling + messaging client. It does not carry voice/video media (RTP/SRTP is UDP,
+> which Workers cannot open), and it does not reach carrier-RCS handsets - that path is gated
+> behind IMS/SIM provisioning, and for businesses it is an HTTPS REST API (Google Jibe /
+> aggregators), which a Worker already calls with `fetch`. TLS is implicit-only
+> (`tls: 'implicit'`); SIP has no in-band STARTTLS.
+
+### One-shot Message
+
+A single `MESSAGE` needs no registration - the server challenges it, edgeport authenticates,
+and the proxy routes it - so it fits a normal request-scoped Worker.
+
+```typescript
+import { sendMessage } from 'edgeport/sip';
+
+await sendMessage({
+	hostname: 'sip.example.com',
+	username: 'alice',
+	password: env.SIP_PW,
+	to: 'bob',
+	text: 'hello over SIP'
+});
+```
+
+### Register and Receive
+
+To receive inbound messages, REGISTER with RFC 5626 "outbound", which lets a listen-less Worker
+receive requests on its own connection (the same trick SMPP `deliver_sm` uses). Hold the session
+in a Durable Object to keep the registration open: an open socket keeps a DO alive up to ~15
+minutes, and the session refreshes REGISTER on its own; reconnect on a DO alarm.
+
+```typescript
+import { connect } from 'edgeport/sip';
+
+await using ua = await connect({
+	hostname: 'sip.example.com',
+	username: 'alice',
+	password: env.SIP_PW
+});
+await ua.register();
+await ua.message('bob', 'hi bob');
+for await (const m of ua.messages()) {
+	console.log('from', m.from, m.text());
+}
+```
+
+### Capabilities and Presence
+
+```typescript
+const caps = await ua.options('bob'); // { status, allow: [...], accept: [...] }
+
+await using sub = await ua.subscribePresence('bob');
+for await (const note of sub) {
+	console.log(note.state, note.text()); // Subscription-State + PIDF XML
+}
+```
+
+### MSRP Chat (session mode)
+
+`invite()` offers an MSRP message session and, on answer, opens the chat over MSRP (RFC 4975);
+the Worker is always the active side and dials the peer's MSRP path.
+
+```typescript
+await using chat = await ua.invite('bob');
+await chat.send('rich chat over MSRP');
+for await (const m of chat.messages()) console.log(m.text());
+```
+
+Digest auth (RFC 2617 / 7616) is handled transparently, including the MD5 that Workers WebCrypto
+lacks - assembled and KAT-verified in the module, the same way SSH assembles ChaCha.
 
 ## Utilities
 
