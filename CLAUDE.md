@@ -20,7 +20,10 @@ Workers-compatible, external.
 - Public surface per protocol: `connect(opts) -> session` (AsyncDisposable, `await using`)
   plus one-shot wrappers (`ssh.exec`, `smtp.send`, `sftp.getFile`, `pop3.retrieveAll`, ...).
 - Errors are always one of `AuthError` / `ConnectionError` / `ProtocolError` / `TimeoutError`.
-- Subpath exports (`edgeport/ssh`, etc.) keep bundles tree-shakeable; `core/` is unexported.
+- Subpath exports (`edgeport/ssh`, etc.) keep bundles tree-shakeable. `core/` is still the ONLY
+  code that imports `cloudflare:sockets`, but as of v1.0.4 it is also published as `edgeport/core`
+  (low-level framed-TCP access for protocols edgeport does not ship); the import invariant is
+  unchanged (never import `cloudflare:sockets` outside `src/core/`).
 
 ## SSH crypto notes (the high-risk code)
 
