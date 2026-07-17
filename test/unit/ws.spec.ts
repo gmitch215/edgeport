@@ -85,6 +85,26 @@ describe('WsConnection iteration', () => {
 		expect(new TextDecoder().decode((got[2] as { data: Uint8Array }).data)).toBe('third');
 	});
 
+	it('exposes text() and json() on both text and binary frames', async () => {
+		const fake = new FakeWebSocket();
+		const conn = _wrap(fake);
+
+		fake.emitMessage('plain text');
+		fake.emitMessage('{"n":1}');
+		fake.emitMessage(enc('binary body'));
+		fake.emitMessage(enc('{"n":2}').buffer);
+		fake.emitClose(1000, '');
+
+		const got: WsMessage[] = [];
+		for await (const msg of conn) got.push(msg);
+
+		expect(got[0]!.text()).toBe('plain text');
+		expect(got[1]!.json<{ n: number }>()).toEqual({ n: 1 });
+		expect(got[2]!.type).toBe('binary');
+		expect(got[2]!.text()).toBe('binary body');
+		expect(got[3]!.json<{ n: number }>()).toEqual({ n: 2 });
+	});
+
 	it('delivers a message that arrives while a reader is parked', async () => {
 		const fake = new FakeWebSocket();
 		const conn = _wrap(fake);
