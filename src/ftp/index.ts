@@ -176,25 +176,26 @@ export interface FtpSession extends AsyncDisposable {
 	 */
 	getStream(path: string, opts?: FtpGetOptions): Promise<ReadableStream<Uint8Array>>;
 	/**
-	 * Stores bytes to a file via `STOR` (or `APPE`).
+	 * Stores a file via `STOR` (or `APPE`). `data` may be bytes or a string (a string is UTF-8
+	 * encoded, so callers do not build a `TextEncoder`).
 	 *
 	 * Defaults to binary (`TYPE I`). Pass `{ type: 'ascii' }` for a text-mode transfer, or resume
 	 * an interrupted upload with `{ append: true }` (use `APPE`, sending only the remaining bytes)
 	 * or `{ offset }` (issue `REST <offset>` before `STOR`, overwriting from that offset).
 	 *
 	 * @param path - Destination path.
-	 * @param data - The bytes to write.
+	 * @param data - The bytes or string to write.
 	 * @param opts - Optional transfer type and resume mode (`append` or `offset`).
 	 * @throws {ProtocolError} If the server rejects the command.
 	 * @since 1.0.0
 	 * @example
 	 * ```typescript
-	 * await session.put('/incoming/report.csv', new TextEncoder().encode('a,b,c\n'));
+	 * await session.put('/incoming/report.csv', 'a,b,c\n');
 	 * // resume an upload that died after the first 1024 bytes
 	 * await session.put('/incoming/big.bin', rest, { append: true });
 	 * ```
 	 */
-	put(path: string, data: Uint8Array, opts?: FtpPutOptions): Promise<void>;
+	put(path: string, data: Uint8Array | string, opts?: FtpPutOptions): Promise<void>;
 	/**
 	 * Deletes a file via `DELE`.
 	 *
@@ -698,12 +699,12 @@ export async function getFile(
  * 	username: 'me',
  * 	password: 'secret',
  * 	path: '/incoming/report.csv',
- * 	data: new TextEncoder().encode('a,b,c\n')
+ * 	data: 'a,b,c\n'
  * });
  * ```
  */
 export async function putFile(
-	opts: FtpConnectOptions & { path: string; data: Uint8Array } & FtpPutOptions
+	opts: FtpConnectOptions & { path: string; data: Uint8Array | string } & FtpPutOptions
 ): Promise<void> {
 	await using session = await connect(opts);
 	await session.put(opts.path, opts.data, {
@@ -914,7 +915,8 @@ class FtpSessionImpl implements FtpSession {
 		});
 	}
 
-	async put(path: string, data: Uint8Array, opts?: FtpPutOptions): Promise<void> {
+	async put(path: string, data: Uint8Array | string, opts?: FtpPutOptions): Promise<void> {
+		const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
 		await this.#control.ensureType(opts?.type ?? 'binary');
 		const conn = await this.#control.openPassive();
 		try {
@@ -923,7 +925,7 @@ class FtpSessionImpl implements FtpSession {
 			const command = append ? `APPE ${path}` : `STOR ${path}`;
 			if (!append && opts?.offset) await this.#control.rest(opts.offset);
 			this.#control.expect(await this.#control.command(command), 150, 125);
-			await conn.writer.write(data);
+			await conn.writer.write(bytes);
 			// half-close the data channel to signal end of transfer
 			await conn.writer.close();
 			this.#control.expect(await this.#control.read(), 226, 250);
@@ -997,7 +999,7 @@ class FtpSessionImpl implements FtpSession {
 	}
 
 	async putText(path: string, content: string, opts?: FtpPutOptions): Promise<void> {
-		await this.put(path, new TextEncoder().encode(content), opts);
+		await this.put(path, content, opts);
 	}
 
 	async getJson<T = unknown>(path: string): Promise<T> {
