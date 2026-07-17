@@ -70,16 +70,86 @@ export interface SshConnectOptions {
 
 /** The result of running a command to completion. */
 export interface ExecResult {
+	/** Raw standard-output bytes. */
 	stdout: Uint8Array;
+	/** Raw standard-error bytes. */
 	stderr: Uint8Array;
+	/** The command's exit status (0 on success). */
 	code: number;
+	/**
+	 * {@link stdout} decoded as UTF-8, for the common text-output case so callers do not build a
+	 * `TextDecoder` themselves. The raw bytes remain on {@link stdout}.
+	 *
+	 * @since 1.0.4
+	 */
+	stdoutText: string;
+	/**
+	 * {@link stderr} decoded as UTF-8. The raw bytes remain on {@link stderr}.
+	 *
+	 * @since 1.0.4
+	 */
+	stderrText: string;
+	/**
+	 * Splits {@link stdoutText} into lines (a single trailing newline is dropped, so a clean
+	 * one-line output yields exactly one entry). The basis for the line accessors below.
+	 *
+	 * @returns The stdout lines.
+	 * @since 1.0.4
+	 */
+	lines(): string[];
+	/**
+	 * The first line of stdout, or `''` if there was no output.
+	 *
+	 * @returns The first line.
+	 * @since 1.0.4
+	 */
+	firstLine(): string;
+	/**
+	 * The last line of stdout, or `''` if there was no output - handy for commands whose result is
+	 * the final line (e.g. `id -u`, `hostname`).
+	 *
+	 * @returns The last line.
+	 * @since 1.0.4
+	 */
+	lastLine(): string;
+	/**
+	 * The stdout line at `index` (0-based; a negative index counts from the end, like `Array.at`),
+	 * or `undefined` if out of range.
+	 *
+	 * @param index - The line index.
+	 * @returns The line, or `undefined`.
+	 * @since 1.0.4
+	 */
+	lineAt(index: number): string | undefined;
+	/**
+	 * The first `n` lines of stdout (fewer if there are fewer).
+	 *
+	 * @param n - How many leading lines to take.
+	 * @returns Up to `n` lines from the start.
+	 * @since 1.0.4
+	 */
+	firstLines(n: number): string[];
+	/**
+	 * The last `n` lines of stdout (fewer if there are fewer).
+	 *
+	 * @param n - How many trailing lines to take.
+	 * @returns Up to `n` lines from the end.
+	 * @since 1.0.4
+	 */
+	lastLines(n: number): string[];
 }
 
 /** A live duplex channel (interactive shell or subsystem). */
 export interface SshChannelHandle extends AsyncDisposable {
 	readonly stdout: ReadableStream<Uint8Array>;
 	readonly stderr: ReadableStream<Uint8Array>;
-	write(data: Uint8Array): Promise<void>;
+	/**
+	 * Writes to the channel's stdin. A string is UTF-8 encoded, so callers do not build a
+	 * `TextEncoder`; pass a {@link Uint8Array} for binary input.
+	 *
+	 * @param data - The stdin data (string or bytes).
+	 */
+	write(data: Uint8Array | string): Promise<void>;
 	eof(): Promise<void>;
 	readonly exit: Promise<ChannelExit>;
 	close(): Promise<void>;
@@ -329,6 +399,44 @@ export interface SshSession extends AsyncDisposable {
 const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
 
+// splits captured output into lines, dropping the empty element a single trailing newline leaves
+function splitLines(text: string): string[] {
+	if (text.length === 0) return [];
+	const lines = text.split(/\r?\n/);
+	if (lines[lines.length - 1] === '') lines.pop();
+	return lines;
+}
+
+/**
+ * Builds an {@link ExecResult} from captured output, attaching the decoded-text fields and the
+ * line accessors. Used by {@link SshSession.exec} and the sudo helpers so the conveniences live
+ * in one place.
+ *
+ * @param stdout - Raw standard-output bytes.
+ * @param stderr - Raw standard-error bytes.
+ * @param code - The exit status.
+ * @returns The assembled result.
+ * @internal
+ */
+export function _makeExecResult(stdout: Uint8Array, stderr: Uint8Array, code: number): ExecResult {
+	const stdoutText = textDecoder.decode(stdout);
+	const stderrText = textDecoder.decode(stderr);
+	const lines = splitLines(stdoutText);
+	return {
+		stdout,
+		stderr,
+		code,
+		stdoutText,
+		stderrText,
+		lines: () => lines.slice(),
+		firstLine: () => lines[0] ?? '',
+		lastLine: () => lines[lines.length - 1] ?? '',
+		lineAt: (index: number) => lines.at(index),
+		firstLines: (n: number) => lines.slice(0, Math.max(0, n)),
+		lastLines: (n: number) => (n <= 0 ? [] : lines.slice(-n))
+	};
+}
+
 /** @internal collects a readable stream of bytes into a single buffer. */
 export async function collect(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
 	const reader = stream.getReader();
@@ -384,7 +492,7 @@ export class Session implements SshSession {
 		const [stdout, stderr] = await Promise.all([collect(ch.stdout), collect(ch.stderr)]);
 		const { code } = await ch.exit;
 		await ch.close().catch(() => {});
-		return { stdout, stderr, code: code ?? 0 };
+		return _makeExecResult(stdout, stderr, code ?? 0);
 	}
 
 	async shell(): Promise<SshChannelHandle> {

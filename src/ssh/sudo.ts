@@ -11,6 +11,7 @@
  */
 import { ProtocolError } from '../core/errors';
 import {
+	_makeExecResult,
 	collect,
 	connect,
 	type ExecResult,
@@ -64,7 +65,7 @@ export async function sudo(
 	const [stdout, stderr] = await Promise.all([collect(ch.stdout), collect(ch.stderr)]);
 	const { code } = await ch.exit;
 	await ch.close().catch(() => {});
-	return { stdout, stderr, code: code ?? 0 };
+	return _makeExecResult(stdout, stderr, code ?? 0);
 }
 
 /**
