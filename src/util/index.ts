@@ -9,6 +9,8 @@
  * @author Gregory Mitchell
  * @since 1.0.3
  */
+export * from './address';
 export * from './encoding';
 export * from './random';
 export * from './retry';
+export * from './timeout';
