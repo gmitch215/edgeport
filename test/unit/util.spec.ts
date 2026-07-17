@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { AuthError, ConnectionError, ProtocolError, TimeoutError } from '../../src/core/errors';
 import {
+	decodeJson,
+	encodeJson,
 	formatEmailAddress,
 	fromBase64,
 	fromHex,
+	fromUtf8,
 	parseEmailAddress,
 	randomHex,
 	randomId,
 	retry,
 	toBase64,
 	toHex,
+	toUtf8,
 	withTimeout
 } from '../../src/util';
 
@@ -281,5 +285,32 @@ describe('util withTimeout', () => {
 	it('returns the same promise reference when ms is Infinity', () => {
 		const p = Promise.resolve(7);
 		expect(withTimeout(p, Infinity)).toBe(p);
+	});
+});
+
+describe('utf8 + json helpers', () => {
+	it('fromUtf8/toUtf8 round-trip, including a multibyte code point', () => {
+		expect(Array.from(fromUtf8('hi'))).toEqual([0x68, 0x69]);
+		const bytes = fromUtf8('\u00e9'); // 1 code point, 2 UTF-8 bytes
+		expect(bytes.length).toBe(2);
+		expect(toUtf8(bytes)).toBe('\u00e9');
+	});
+
+	it('encodeJson produces UTF-8 JSON bytes that decodeJson reads back', () => {
+		const bytes = encodeJson({ ok: true, n: 2 });
+		expect(toUtf8(bytes)).toBe('{"ok":true,"n":2}');
+		expect(decodeJson<{ ok: boolean; n: number }>(bytes)).toEqual({ ok: true, n: 2 });
+	});
+
+	it('encodeJson honors the space argument', () => {
+		expect(toUtf8(encodeJson({ a: 1 }, 2))).toBe('{\n  "a": 1\n}');
+	});
+
+	it('decodeJson accepts a string as well as bytes', () => {
+		expect(decodeJson<number[]>('[1,2,3]')).toEqual([1, 2, 3]);
+	});
+
+	it('decodeJson throws ProtocolError on invalid JSON', () => {
+		expect(() => decodeJson('{bad')).toThrow(ProtocolError);
 	});
 });
