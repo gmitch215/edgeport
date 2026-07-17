@@ -3,9 +3,10 @@
 TypeScript TCP-protocol library for the **Cloudflare Workers** runtime built on
 `cloudflare:sockets`. Bun + strict ESM. Protocols: SSH, SFTP, SMTP, IMAP, POP3, WebSocket,
 NATS, MQTT (+ MQTT-over-WS), STOMP, FTP, LDAP/LDAPS, Syslog, SMPP (v3.4 ESME), SIP + MSRP
-(the RCS chat protocol family; signaling/messaging only, no RTP media, no carrier RCS). Also
-`edgeport/util` (transport-free hex/base64/random/retry helpers) and SMTP email-to-SMS gateways
-(`sendSms`).
+(the RCS chat protocol family; signaling/messaging only, no RTP media, no carrier RCS), DNS
+(over TCP, RFC 1035 + 7766), XMPP (RFC 6120/6121 + pubsub), IRC (RFC 2812 + IRCv3). Also
+`edgeport/util` (transport-free hex/base64/random/retry/address/timeout helpers) and SMTP
+email-to-SMS gateways (`sendSms`).
 Runtime deps: `@noble/ciphers` (SSH ChaCha) and `bcrypt-pbkdf` (encrypted OpenSSH keys) - both
 Workers-compatible, external.
 
@@ -63,8 +64,19 @@ admin `cn=admin,dc=example,dc=org`/`admin` 389; MQTT mosquitto anon 1883; STOMP 
 Kamailio 5.6 (`docker/sip`, apt-at-runtime on pinned debian) 5060/tcp + MSRP relay 2855, realm
 `edgeport.test`, `tester`/`testpass` (realm-static password, any username binds), routes MESSAGE
 between registered AORs (MSRP relay needs an AUTH handshake edgeport's session skips - MSRP
-session-mode is unit-tested, not E2E). The publickey test key is `test/fixtures/ed25519_pkcs8.pem`
-(its pub is in compose); more key fixtures in `test/fixtures/`.
+session-mode is unit-tested, not E2E). DNS CoreDNS (distroless, digest-pinned) serving static
+zone `edgeport.test` on 5354 (tcp+udp -> container 53): A/AAAA/MX/TXT/SRV/CNAME/CAA/NS/SOA plus
+reverse zone `1.0.10.in-addr.arpa` (PTR for 10.0.1.x); no shell healthcheck (distroless is like
+nats/mqtt/greenmail), readiness via the spec's beforeAll poll. XMPP ejabberd (`docker/xmpp`,
+`ghcr.io/processone/ejabberd`) plaintext c2s 5222, VirtualHost/domain `localhost`, users
+`tester`/`tester2` `testpass` (registered via `CTL_ON_CREATE`), pubsub component
+`pubsub.localhost`; STARTTLS/implicit-TLS not E2E-testable under workerd (cert validation, the
+LDAPS lesson), so XMPP integration uses tls:'off'. IRC ergo 2.18.0 (`docker/irc`, digest-pinned)
+plaintext 6667, no accounts/SASL required to connect, channels creatable on join, `ip-limits`
+disabled for many local clients (SASL is unit-tested only - ergo accounts need NickServ
+registration, so integration is the plaintext NICK/USER + channel flow). The publickey test key
+is `test/fixtures/ed25519_pkcs8.pem` (its pub is in compose); more key fixtures in
+`test/fixtures/`.
 
 ## Conventions
 
