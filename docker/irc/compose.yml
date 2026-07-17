@@ -1,0 +1,12 @@
+services:
+  irc:
+    image: ghcr.io/ergochat/ergo@sha256:0ccde041f89f4b526a2d445b25078de80d3fa43fd8d3208deb242ae6b2b81d61
+    volumes:
+      - ./ircd.yaml:/ircd/ircd.yaml:ro
+    healthcheck:
+      test: ['CMD', 'sh', '-c', 'nc -z 127.0.0.1 6667']
+      interval: 2s
+      timeout: 2s
+      retries: 40
+    ports:
+      - '127.0.0.1:6667:6667'

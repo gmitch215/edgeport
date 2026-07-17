@@ -1,0 +1,13 @@
+edgeport.test:53 {
+    file /zones/db.edgeport.test
+    health :8080
+    ready :8181
+    log
+    errors
+}
+
+1.0.10.in-addr.arpa:53 {
+    file /zones/db.10.0.1
+    log
+    errors
+}

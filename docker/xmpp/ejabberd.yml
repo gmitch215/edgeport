@@ -1,0 +1,102 @@
+hosts:
+  - localhost
+
+loglevel: warning
+
+ca_file: /opt/ejabberd/conf/cacert.pem
+certfiles:
+  - /opt/ejabberd/conf/server.pem
+
+listen:
+  - port: 5222
+    ip: '::'
+    module: ejabberd_c2s
+    max_stanza_size: 262144
+    shaper: c2s_shaper
+    access: c2s
+    # plaintext for the workers transport: no in-band TLS, PLAIN over cleartext allowed
+    starttls: false
+    starttls_required: false
+    tls: false
+  - port: 5280
+    ip: '::'
+    module: ejabberd_http
+    request_handlers:
+      /admin: ejabberd_web_admin
+  - port: 'unix:../sockets/ctl_over_http.sock'
+    module: ejabberd_http
+    unix_socket:
+      mode: '0600'
+    request_handlers:
+      /ctl: ejabberd_ctl
+
+# store plaintext passwords so SASL PLAIN verifies without a TLS channel
+auth_method: internal
+auth_password_format: plain
+
+acl:
+  local:
+    user_regexp: ''
+  loopback:
+    ip:
+      - 127.0.0.0/8
+      - ::1/128
+
+access_rules:
+  local:
+    allow: local
+  c2s:
+    allow: all
+  pubsub_createnode:
+    allow: all
+  trusted_network:
+    allow: loopback
+
+api_permissions:
+  'console commands':
+    from: ejabberd_ctl
+    who: all
+    what: '*'
+
+shaper:
+  normal:
+    rate: 3000
+    burst_size: 20000
+  fast: 100000
+
+shaper_rules:
+  max_user_sessions: 10
+  c2s_shaper:
+    none: local
+    normal: all
+  s2s_shaper: fast
+
+modules:
+  mod_adhoc: {}
+  mod_caps: {}
+  mod_carboncopy: {}
+  mod_disco: {}
+  mod_last: {}
+  mod_offline:
+    access_max_user_messages: 5000
+  mod_ping: {}
+  mod_privacy: {}
+  mod_private: {}
+  mod_pubsub:
+    access_createnode: pubsub_createnode
+    # flat -> the pubsub.localhost service component; pep -> per-account PEP nodes
+    plugins:
+      - flat
+      - pep
+    force_node_config:
+      '*':
+        access_model: open
+        publish_model: open
+        notify_retract: true
+        send_last_published_item: never
+  mod_roster:
+    versioning: true
+  mod_vcard: {}
+  mod_version:
+    show_os: false
+  mod_stream_mgmt: {}

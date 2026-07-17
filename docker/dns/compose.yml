@@ -1,0 +1,11 @@
+services:
+  dns:
+    image: coredns/coredns@sha256:986f04c2e15e147d00bdd51e8c51bcef3644b13ff806be7d2ff1b261d6dfbae1
+    command: ['-conf', '/Corefile']
+    volumes:
+      - ./Corefile:/Corefile:ro
+      - ./db.edgeport.test:/zones/db.edgeport.test:ro
+      - ./db.10.0.1:/zones/db.10.0.1:ro
+    ports:
+      - '127.0.0.1:5354:53/tcp'
+      - '127.0.0.1:5354:53/udp'

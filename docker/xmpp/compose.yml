@@ -1,0 +1,16 @@
+services:
+  xmpp:
+    image: ghcr.io/processone/ejabberd@sha256:68482e33ff11934e73ef2881cf455ccefc1e03b31203f3ab651f4b2b1152b4a8
+    environment:
+      # pre-register the two test accounts once on first container creation (SEPARATOR=;)
+      CTL_ON_CREATE: 'register tester localhost testpass ; register tester2 localhost testpass'
+    volumes:
+      - ./ejabberd.yml:/opt/ejabberd/conf/ejabberd.yml:ro
+    healthcheck:
+      # green only once the node is up AND both users are registered (CTL_ON_CREATE ran)
+      test: ['CMD-SHELL', 'ejabberdctl registered_users localhost | grep -qx tester2 || exit 1']
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    ports:
+      - '127.0.0.1:5222:5222'

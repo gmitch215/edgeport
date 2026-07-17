@@ -1,0 +1,20 @@
+$ORIGIN edgeport.test.
+$TTL 3600
+@       IN SOA  ns1.edgeport.test. hostmaster.edgeport.test. (
+                2026071700 ; serial
+                7200       ; refresh
+                3600       ; retry
+                1209600    ; expire
+                300 )      ; minimum
+@           IN NS    ns1.edgeport.test.
+@           IN MX    10 mail.edgeport.test.
+@           IN TXT   "v=spf1 -all"
+@           IN TXT   "edgeport=dns"
+@           IN CAA   0 issue "letsencrypt.org"
+ns1         IN A     10.0.1.53
+host        IN A     93.184.216.34
+host        IN AAAA  2001:db8::53
+mail        IN A     10.0.1.25
+sip         IN A     10.0.1.60
+www         IN CNAME host.edgeport.test.
+_sip._tcp   IN SRV   10 20 5060 sip.edgeport.test.
