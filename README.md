@@ -104,13 +104,13 @@ import { exec } from 'edgeport/ssh';
 
 export default {
 	async fetch(): Promise<Response> {
-		const { stdout, code } = await exec({
+		const { stdoutText, code } = await exec({
 			hostname: 'example.com',
 			username: 'deploy',
 			password: env.SSH_PASSWORD,
 			command: 'uptime'
 		});
-		return new Response(`exit ${code}\n${new TextDecoder().decode(stdout)}`);
+		return new Response(`exit ${code}\n${stdoutText}`);
 	}
 };
 ```
@@ -122,12 +122,13 @@ export default {
 ```typescript
 import { exec } from 'edgeport/ssh';
 
-const { stdout, stderr, code } = await exec({
+const { stdout, stdoutText, code } = await exec({
 	hostname: 'host',
 	username: 'user',
 	privateKey: { pem: env.SSH_KEY }, // PKCS8 PEM, or pass a CryptoKey
 	command: 'ls -la /var/log'
 });
+// stdoutText / stderrText are the decoded strings; stdout / stderr keep the raw bytes
 ```
 
 ### A reusable Session
@@ -144,13 +145,16 @@ const b = await ssh.exec('date');
 ### Interactive Shell (streaming)
 
 ```typescript
+import { connect } from 'edgeport/ssh';
+import { toUtf8 } from 'edgeport/util';
+
 await using ssh = await connect({ hostname: 'host', username: 'user', password: env.PW });
 await using shell = await ssh.shell();
 
-await shell.write(new TextEncoder().encode('echo hi\n'));
+await shell.write('echo hi\n');
 const reader = shell.stdout.getReader();
 const { value } = await reader.read();
-console.log(new TextDecoder().decode(value));
+console.log(toUtf8(value!));
 ```
 
 ### Keyboard-Interactive and Host-Key Pinning
@@ -179,13 +183,13 @@ password is reused as the sudo password (the common case):
 ```typescript
 import { sudoExec } from 'edgeport/ssh';
 
-const { stdout, code } = await sudoExec({
+const { stdoutText, code } = await sudoExec({
 	hostname: 'host',
 	username: 'user',
 	password: env.PW,
 	command: 'systemctl restart myapp'
 });
-console.log(code, new TextDecoder().decode(stdout));
+console.log(code, stdoutText);
 ```
 
 Reusing an already-open session (pass the sudo password explicitly):
@@ -194,8 +198,8 @@ Reusing an already-open session (pass the sudo password explicitly):
 import { connect, sudo } from 'edgeport/ssh';
 
 await using ssh = await connect({ hostname: 'host', username: 'user', password: env.PW });
-const { stdout } = await sudo(ssh, 'whoami', { password: env.PW });
-console.log(new TextDecoder().decode(stdout)); // "root"
+const result = await sudo(ssh, 'whoami', { password: env.PW });
+console.log(result.lastLine()); // "root"
 ```
 
 ### Forcing a Cipher
@@ -334,7 +338,7 @@ await putFile({ hostname: 'h', username: 'u', password: p, path: '/tmp/x', data:
 // a session
 await using sftp = await connect({ hostname: 'h', username: 'u', password: p });
 await sftp.mkdir('/tmp/reports');
-await sftp.writeFile('/tmp/reports/today.csv', new TextEncoder().encode('a,b,c\n'));
+await sftp.writeFile('/tmp/reports/today.csv', 'a,b,c\n');
 for (const entry of await sftp.list('/tmp/reports')) {
 	console.log(entry.filename, entry.attrs.size);
 }
@@ -384,6 +388,7 @@ await sftp.writeText('/srv/app/note.txt', 'deployed\n');
 const note = await sftp.readText('/srv/app/note.txt');
 await sftp.writeJson('/srv/app/config.json', { port: 8080 }, { space: 2 });
 const config = await sftp.readJson<{ port: number }>('/srv/app/config.json');
+await sftp.writeFile('/srv/app/data.txt', 'writeFile also accepts a string (UTF-8 encoded)');
 
 await sftp.chmod('/srv/app/run.sh', 0o755);
 
@@ -515,6 +520,7 @@ await using imap = await connect({
 const { exists } = await imap.select('INBOX');
 const uids = await imap.search({ unseen: true });
 const messages = await imap.fetch(uids, { envelope: true, body: true });
+for (const m of messages) console.log(m.text()); // decoded body; m.body keeps the raw bytes
 ```
 
 ### One-shot Fetch Recent
@@ -546,7 +552,8 @@ await using pop = await connect({
 	auth: { username: 'u', password: env.PW }
 });
 const { count } = await pop.stat();
-const first = await pop.retrieve(1);
+const first = await pop.retrieve(1); // raw bytes
+const firstText = await pop.retrieveText(1); // decoded string, no TextDecoder needed
 ```
 
 ### One-shot Retrieve All
@@ -589,11 +596,11 @@ import { connect } from 'edgeport/ws';
 
 const ws = await connect('wss://stream.example.com/feed');
 ws.sendJson({ subscribe: 'ticks' });
+// json() and text() work on every frame (text OR binary) - no branching on type, no
+// TextDecoder; a server that sends JSON over binary frames just works
 for await (const msg of ws) {
-	if (msg.type === 'text') {
-		const event = msg.json<{ price: number }>();
-		// handle the parsed event here
-	}
+	const event = msg.json<{ price: number }>();
+	// handle the parsed event here
 }
 ```
 
@@ -608,7 +615,7 @@ await using nc = await connect({ hostname: 'nats.example.com', token: env.NATS_T
 const sub = nc.subscribe('orders.*', { queue: 'workers' });
 await nc.publish('orders.created', JSON.stringify({ id: 42 }));
 for await (const msg of sub) {
-	const order = JSON.parse(new TextDecoder().decode(msg.data));
+	const order = msg.json();
 	// handle the order here
 }
 
@@ -640,7 +647,7 @@ const sub = nc.subscribe('orders.*', { queue: 'workers' });
 
 // directly iterate messages with `for await`
 for await (const msg of sub) {
-	const order = JSON.parse(new TextDecoder().decode(msg.data));
+	const order = msg.json();
 	// one member of the 'workers' queue group receives each message
 }
 ```
@@ -704,7 +711,7 @@ await using mqtt = await connect({
 
 await mqtt.publish('sensors/edge/temp', '21.4', { qos: 1, retain: true });
 const sub = mqtt.subscribe('sensors/+/temp', { qos: 1 });
-for await (const m of sub) console.log(m.topic, new TextDecoder().decode(m.payload));
+for await (const m of sub) console.log(m.topic, m.text());
 
 // or tunnel MQTT through a WebSocket broker endpoint
 const overWs = await connectWebSocket('wss://broker.example.com:8884/mqtt', {
@@ -723,7 +730,7 @@ await using mqtt = await connect({ hostname: 'broker.example.com', clientId: 'ed
 const sub = mqtt.subscribe('sensors/+/temp', { qos: 1 });
 
 for await (const m of sub) {
-	console.log(m.topic, new TextDecoder().decode(m.payload));
+	console.log(m.topic, m.text());
 }
 ```
 
@@ -840,7 +847,7 @@ await using ftp = await connect({
 	username: 'u',
 	password: env.FTP_PW
 });
-await ftp.put('reports/today.csv', new TextEncoder().encode('a,b,c\n'));
+await ftp.put('reports/today.csv', 'a,b,c\n');
 for (const entry of await ftp.list('reports')) console.log(entry.name, entry.size);
 const bytes = await ftp.get('reports/today.csv');
 ```
@@ -1386,16 +1393,29 @@ for consumers too. Importing it never pulls in `cloudflare:sockets`.
 | ------------------------------------------ | --------------------------------------------------------------------- |
 | `toHex` / `fromHex`                        | Bytes <-> lowercase hex.                                              |
 | `toBase64` / `fromBase64`                  | Bytes <-> base64 (standard or URL-safe; tolerant decode).             |
+| `fromUtf8` / `toUtf8`                      | String <-> UTF-8 bytes (no more `new TextEncoder()`).                 |
+| `encodeJson` / `decodeJson`                | Value <-> UTF-8 JSON bytes (tolerant parse to a `ProtocolError`).     |
 | `randomHex` / `randomId`                   | CSPRNG-backed random hex tokens and prefixed ids.                     |
 | `retry`                                    | Run an operation with exponential backoff, retrying transient errors. |
 | `parseEmailAddress` / `formatEmailAddress` | Parse and format `Display Name <local@domain>`.                       |
 | `withTimeout`                              | Race a promise against a deadline; rejects with `TimeoutError`.       |
 
 ```typescript
-import { toBase64, randomId, retry, parseEmailAddress, withTimeout } from 'edgeport/util';
+import {
+	toBase64,
+	fromUtf8,
+	encodeJson,
+	randomId,
+	retry,
+	parseEmailAddress,
+	withTimeout
+} from 'edgeport/util';
 
 toBase64(bytes, { urlSafe: true }); // url-safe, unpadded
 randomId('worker'); // 'worker-3f9a...'
+
+fromUtf8('hi'); // UTF-8 bytes; toUtf8(bytes) decodes back - no TextEncoder/Decoder needed
+encodeJson({ ok: true }); // bytes of '{"ok":true}'; decodeJson(bytes) parses it back
 
 parseEmailAddress('Ada Lovelace <ada@example.com>');
 // { name: 'Ada Lovelace', address: 'ada@example.com', local: 'ada', domain: 'example.com' }
@@ -1517,7 +1537,7 @@ await using log = await syslogConnect({
 for await (const reading of mqtt.subscribe('sensors/#', { qos: 1 })) {
 	await log.log({
 		severity: Severity.info,
-		message: `${reading.topic}=${new TextDecoder().decode(reading.payload)}`
+		message: `${reading.topic}=${reading.text()}`
 	});
 }
 ```
@@ -1614,23 +1634,31 @@ try {
 
 ## Advanced: Building-Block Exports
 
-Beyond the protocol modules, edgeport publishes the lower-level SSH building blocks it is
-assembled from, for tooling that needs them directly:
+Beyond the protocol modules, edgeport publishes the low-level transport core and the SSH
+building blocks it is assembled from, for tooling that needs them directly:
 
-| Import            | Provides                                                                                                                         |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `edgeport/wire`   | SSH binary wire codecs (`SshReader`, `SshWriter`, `toMpintBody`)                                                                 |
-| `edgeport/crypto` | hashes/HMAC, the SSH packet ciphers (`createPacketCipher`, `cipherSizes`), host/user keys (`verifyHostSignature`, `loadUserKey`) |
-| `edgeport/kex`    | KEXINIT negotiation, the exchange hash + key schedule, `createKex`, and the `curve25519`/`nistp256` namespaces                   |
-| `edgeport/auth`   | SSH user authentication (`authenticate`)                                                                                         |
+| Import            | Provides                                                                                                                                                                                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `edgeport/core`   | The raw framed TCP transport (`connect`, `CoreSocket`, `FramedReader` / `FramedWriter`, `startTls`) plus the shared error vocabulary - to speak a protocol edgeport does not ship on the same buffered transport the built-ins use |
+| `edgeport/wire`   | SSH binary wire codecs (`SshReader`, `SshWriter`, `toMpintBody`)                                                                                                                                                                   |
+| `edgeport/crypto` | hashes/HMAC, the SSH packet ciphers (`createPacketCipher`, `cipherSizes`), host/user keys (`verifyHostSignature`, `loadUserKey`)                                                                                                   |
+| `edgeport/kex`    | KEXINIT negotiation, the exchange hash + key schedule, `createKex`, and the `curve25519`/`nistp256` namespaces                                                                                                                     |
+| `edgeport/auth`   | SSH user authentication (`authenticate`)                                                                                                                                                                                           |
 
 ```typescript
+import { connect } from 'edgeport/core';
 import { SshReader, SshWriter } from 'edgeport/wire';
 import { createPacketCipher, verifyHostSignature } from 'edgeport/crypto';
 import { negotiate, createKex } from 'edgeport/kex';
+
+// a raw framed TCP client for a protocol edgeport does not ship (finger, RFC 1288)
+await using sock = await connect({ hostname: 'example.com', port: 79 });
+await sock.writer.writeLine('');
+const line = await sock.reader.readLine();
 ```
 
 These are stable but lower-level; most applications only need the protocol modules above.
+`edgeport/core` is the one module that imports `cloudflare:sockets` - every protocol is built on it.
 
 ## API Reference
 
