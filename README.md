@@ -27,6 +27,9 @@ edgeport is written for the Workers runtime from the ground up.
 - [Syslog](#syslog)
 - [SMPP](#smpp)
 - [SIP (RCS)](#sip-rcs)
+- [DNS](#dns)
+- [XMPP](#xmpp)
+- [IRC](#irc)
 - [Utilities](#utilities)
 - [Real-World Recipes](#real-world-recipes)
 - [Error Handling](#error-handling)
@@ -46,8 +49,8 @@ the runtime does not provide. edgeport is:
 - **Tree-Shakeable.** Import only the protocol you use (`edgeport/ssh`, `edgeport/smtp`, ...).
 - **Tested against Real Servers.** Every protocol is verified under `workerd` against
   Dockerized servers (OpenSSH, Dropbear, GreenMail, NATS with JetStream, Mosquitto, ActiveMQ,
-  OpenLDAP, an FTP server, an SMPP SMSC simulator, a Kamailio SIP server, and a WebSocket echo
-  server) - not mocks.
+  OpenLDAP, an FTP server, an SMPP SMSC simulator, a Kamailio SIP server, a CoreDNS resolver, an
+  ejabberd XMPP server, an Ergo IRC server, and a WebSocket echo server) - not mocks.
 
 ## Features
 
@@ -64,8 +67,12 @@ the runtime does not provide. edgeport is:
 - **Syslog** RFC 5424 over TCP/TLS with octet-counting or LF framing.
 - **SMPP** v3.4 client (ESME): bind, `submit_sm`, and inbound `deliver_sm` / delivery receipts.
 - **SIP / RCS** user agent over TCP/TLS: register, `MESSAGE`, `OPTIONS`, presence, and MSRP chat.
+- **DNS** over TCP (RFC 1035): `resolve`, typed record helpers, reverse lookups, and raw queries.
+- **XMPP** (RFC 6120/6121): presence, messages, roster, and pubsub through a concept API.
+- **IRC** (RFC 1459/2812 + IRCv3): channels, messages, events, SASL, and raw commands.
 - **Email-to-SMS** carrier-gateway addressing layered on SMTP (`sendSms`).
-- **Utilities** (`edgeport/util`): hex/base64 codecs, random ids, and retry-with-backoff.
+- **Utilities** (`edgeport/util`): hex/base64 codecs, random ids, retry-with-backoff, email-address
+  parsing, and promise deadlines.
 - One uniform error vocabulary: `AuthError`, `ConnectionError`, `ProtocolError`, `TimeoutError`.
 
 ### SSH algorithm support
@@ -1177,19 +1184,223 @@ for await (const m of chat.messages()) console.log(m.text());
 Digest auth (RFC 2617 / 7616) is handled transparently, including the MD5 that Workers WebCrypto
 lacks - assembled and KAT-verified in the module, the same way SSH assembles ChaCha.
 
+## DNS
+
+Resolve DNS over TCP (RFC 1035 + RFC 7766) from a Worker. Three levels: one-shot `resolve`
+helpers, a reusable session that pipelines queries over one connection, and a raw query that
+returns the full message (answer, authority, and additional sections) for tooling.
+
+> [!IMPORTANT]
+> The default resolver is `1.1.1.1` (`RESOLVERS.cloudflare`) to match ecosystem expectations,
+> but a Worker's outbound TCP to Cloudflare IP ranges - which include `1.1.1.1` - is blocked by
+> the runtime. **Inside a Worker, pass a non-Cloudflare resolver** (`RESOLVERS.google` /
+> `RESOLVERS.quad9`). UDP is impossible on Workers, so this is DNS-over-TCP only; DNS-over-TLS is
+> available with `tls: 'implicit'` (port 853).
+
+```typescript
+import { resolve, resolve4, resolveMx, reverse, RESOLVERS } from 'edgeport/dns';
+
+const ips = await resolve4('example.com', { server: RESOLVERS.google }); // string[]
+const mx = await resolveMx('example.com', { server: RESOLVERS.google }); // MxRecord[]
+const names = await reverse('8.8.8.8', { server: RESOLVERS.google }); // ['dns.google']
+
+// the overloaded resolve() narrows its return on the record type
+const aaaa = await resolve('example.com', { type: 'AAAA', server: RESOLVERS.quad9 }); // string[]
+```
+
+### Session (Pipelined Queries)
+
+```typescript
+import { connect, RESOLVERS } from 'edgeport/dns';
+
+await using dns = await connect({ hostname: RESOLVERS.google });
+const [a, mx, txt] = await Promise.all([
+	dns.query('example.com', 'A'),
+	dns.query('example.com', 'MX'),
+	dns.query('example.com', 'TXT')
+]);
+```
+
+### Raw Query (Full Message)
+
+```typescript
+import { query, RESOLVERS } from 'edgeport/dns';
+
+const res = await query(
+	{ questions: [{ name: 'example.com', type: 'A' }], dnssec: true },
+	{ hostname: RESOLVERS.quad9 }
+);
+console.log(res.rcode, res.answers, res.authority, res.additional);
+```
+
+`NXDOMAIN` and "no records" return an empty array (never a throw); a server error rcode
+(`SERVFAIL`, `REFUSED`, ...) throws a `ProtocolError`. The raw `query` exposes the rcode instead
+of throwing.
+
+## XMPP
+
+XMPP (RFC 6120 / 6121 + XEP-0060 pubsub/PEP) over the raw-TCP core. A concept-based API - you
+never touch raw XML, but an escape hatch is there when you need it. Port 5222 (plaintext /
+STARTTLS), 5223 (implicit TLS). SASL PLAIN and SCRAM-SHA-1/256; the strongest mechanism the
+server offers is chosen.
+
+```typescript
+import { connect, el, text } from 'edgeport/xmpp';
+
+await using xmpp = await connect({
+	jid: 'juliet@example.com',
+	password: env.XMPP_PW,
+	tls: 'starttls' // 'off' | 'starttls' (default) | 'implicit'
+});
+
+// presence: friendly states map to XMPP (online, away, busy=dnd, xa, invisible, offline)
+await xmpp.setPresence('online', { status: 'at the balcony' });
+
+// send + receive chat
+await xmpp.send({ to: 'romeo@example.com', body: 'wherefore art thou' });
+for await (const msg of xmpp.messages()) {
+	console.log(msg.from, msg.body);
+	break;
+}
+
+// roster
+await xmpp.addRosterItem('romeo@example.com', { name: 'Romeo', groups: ['Montague'] });
+for (const item of await xmpp.roster()) console.log(item.jid, item.subscription, item.groups);
+```
+
+### PubSub
+
+```typescript
+import { connect, el, text } from 'edgeport/xmpp';
+
+await using xmpp = await connect({ jid: 'sensor@example.com', password: env.XMPP_PW });
+
+// create a node on a pubsub component, subscribe, publish, receive the event
+await xmpp.createNode('pubsub.example.com', 'sensors/temp');
+await xmpp.subscribeNode('pubsub.example.com', 'sensors/temp');
+const events = xmpp.pubsub()[Symbol.asyncIterator]();
+await xmpp.publish('sensors/temp', el('reading', { xmlns: 'urn:example' }, '21.5'), {
+	service: 'pubsub.example.com'
+});
+const { payload } = (await events.next()).value;
+console.log(text(payload!)); // '21.5'
+
+// PEP (publish to your own account): omit the service
+await xmpp.publish(
+	'urn:xmpp:avatar:metadata',
+	el('metadata', { xmlns: 'urn:xmpp:avatar:metadata' })
+);
+```
+
+### Raw Stanzas
+
+```typescript
+await xmpp.sendXML("<presence type='unavailable'/>");
+const version = await xmpp.iq('get', el('query', { xmlns: 'jabber:iq:version' }), {
+	to: 'example.com'
+});
+```
+
+A long-lived session (to receive inbound stanzas) belongs in a Durable Object - an open socket
+keeps a DO alive up to ~15 min. For fire-once sends, `sendChat` binds, sends, and closes:
+
+```typescript
+import { sendChat } from 'edgeport/xmpp';
+
+await sendChat({
+	jid: 'bot@example.com',
+	password: env.XMPP_PW,
+	to: 'ops@example.com',
+	body: 'deploy finished'
+});
+```
+
+## IRC
+
+RFC 1459 / 2812 with IRCv3 extensions (CAP negotiation, SASL, message-tags, server-time).
+Plaintext 6667 or implicit TLS 6697.
+
+```typescript
+import { connect } from 'edgeport/irc';
+
+await using irc = await connect({ hostname: 'irc.example.com', nick: 'edgebot' });
+
+await irc.join('#edgeport');
+await irc.say('#edgeport', 'hello from the edge');
+await irc.action('#edgeport', 'waves'); // CTCP ACTION (/me)
+
+for await (const m of irc.messages()) {
+	if (m.isChannel) console.log(`<${m.from}> ${m.text}`);
+	if (m.ctcp?.command === 'ACTION') console.log(`* ${m.from} ${m.ctcp.args}`);
+	break;
+}
+```
+
+### SASL
+
+Pass `sasl` to run the IRCv3 CAP + SASL PLAIN exchange before registration (only the caps the
+server offers are requested):
+
+```typescript
+await using irc = await connect({
+	hostname: 'irc.example.com',
+	nick: 'edgebot',
+	sasl: { user: 'edgeacct', password: env.IRC_PASSWORD },
+	caps: ['message-tags', 'server-time'] // extra caps to request alongside sasl
+});
+```
+
+### Events, Names, Topic, WHOIS
+
+`messages()` carries PRIVMSG/NOTICE (with CTCP parsed); everything else - JOIN/PART/QUIT/NICK/
+KICK/MODE/TOPIC and numerics - flows through `events()`. Server `PING`s are answered automatically.
+
+```typescript
+for await (const ev of irc.events()) {
+	if (ev.command === 'JOIN') console.log(`${ev.prefix?.nick} joined ${ev.params[0]}`);
+}
+
+const members = await irc.names('#edgeport'); // string[], membership prefixes stripped
+await irc.topic('#edgeport', 'welcome'); // set
+const current = await irc.topic('#edgeport'); // get
+const who = await irc.whois('alice');
+await irc.changeNick('edgebot2'); // resolves once the server echoes the NICK
+```
+
+### Raw Commands
+
+`send(command, ...params)` applies the trailing-parameter rule to the last argument;
+`sendRaw(line)` is the verbatim escape hatch.
+
+```typescript
+await irc.send('MODE', '#edgeport', '+o', 'alice'); // MODE #edgeport +o alice
+await irc.sendRaw('WHO #edgeport');
+```
+
 ## Utilities
 
 `edgeport/util` is a small set of transport-free helpers the protocol modules share, published
-for consumers too: byte-encoding codecs, random ids off the CSPRNG, and a retry-with-backoff
-tuned to edgeport's error vocabulary.
+for consumers too. Importing it never pulls in `cloudflare:sockets`.
+
+| Helper                                     | Purpose                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------- |
+| `toHex` / `fromHex`                        | Bytes <-> lowercase hex.                                              |
+| `toBase64` / `fromBase64`                  | Bytes <-> base64 (standard or URL-safe; tolerant decode).             |
+| `randomHex` / `randomId`                   | CSPRNG-backed random hex tokens and prefixed ids.                     |
+| `retry`                                    | Run an operation with exponential backoff, retrying transient errors. |
+| `parseEmailAddress` / `formatEmailAddress` | Parse and format `Display Name <local@domain>`.                       |
+| `withTimeout`                              | Race a promise against a deadline; rejects with `TimeoutError`.       |
 
 ```typescript
-import { toHex, fromHex, toBase64, fromBase64, randomId, retry } from 'edgeport/util';
+import { toBase64, randomId, retry, parseEmailAddress, withTimeout } from 'edgeport/util';
 
-toHex(new Uint8Array([0xde, 0xad])); // 'dead'
 toBase64(bytes, { urlSafe: true }); // url-safe, unpadded
-fromBase64('data:text/plain;base64,aGk='); // tolerant: strips the data-uri prefix, restores padding
 randomId('worker'); // 'worker-3f9a...'
+
+parseEmailAddress('Ada Lovelace <ada@example.com>');
+// { name: 'Ada Lovelace', address: 'ada@example.com', local: 'ada', domain: 'example.com' }
+
+const res = await withTimeout(fetch('https://example.com'), 5000, 'fetch');
 
 // retry only transient ConnectionError / TimeoutError - never AuthError / ProtocolError
 import { connect } from 'edgeport/ssh';
@@ -1197,6 +1408,9 @@ const ssh = await retry(() => connect({ hostname: 'box', username: 'u', password
 	attempts: 4
 });
 ```
+
+The SSH module also gains `fingerprint(key)`, turning the raw key bytes a `HostKeyVerifier`
+receives into the `SHA256:...` form `ssh-keygen -l` prints, for trust-on-first-use pinning.
 
 ## Real-World Recipes
 
@@ -1390,6 +1604,13 @@ try {
   socket API cannot present; PLAIN is equivalent to simple bind, and SCRAM/DIGEST/GSSAPI are
   rarely required. NATS auth is fully covered (token / user-pass / nkey / JWT); NATS does not
   use SASL. MQTT/STOMP/Syslog authenticate via TLS + username-password.
+- **DNS is TCP-only, and `1.1.1.1` is unreachable from a Worker.** Workers cannot open UDP, so
+  `edgeport/dns` speaks DNS-over-TCP (RFC 7766); DNS-over-TLS works via `tls: 'implicit'`. The
+  default resolver `1.1.1.1` is a Cloudflare IP, which the runtime blocks outbound - pass
+  `RESOLVERS.google` / `RESOLVERS.quad9` from inside a Worker.
+- **XMPP and IRC over TLS are proven only against a real trusted-cert server.** workerd validates
+  certificates, so the self-signed docker servers exercise the plaintext path end-to-end while
+  STARTTLS / implicit-TLS for both is unit-tested; both connect fine to a public TLS server.
 
 ## Advanced: Building-Block Exports
 
