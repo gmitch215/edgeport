@@ -212,7 +212,12 @@ export class StreamFramedReader implements FramedReader {
 		}
 	}
 
-	// drops the stream lock without cancelling (used when the socket is upgraded by startTls)
+	/**
+	 * Releases the underlying stream lock without cancelling the stream.
+	 *
+	 * Used when a `starttls` upgrade swaps the socket: the old reader must relinquish its lock so
+	 * the new socket's streams can be locked, without cancelling the (discarded) old stream.
+	 */
 	release(): void {
 		try {
 			this.#reader.releaseLock();
@@ -248,7 +253,12 @@ export class StreamFramedWriter implements FramedWriter {
 		}
 	}
 
-	// drops the stream lock without closing (used when the socket is upgraded by startTls)
+	/**
+	 * Releases the underlying stream lock without closing the stream.
+	 *
+	 * Used when a `starttls` upgrade swaps the socket: the old writer must relinquish its lock so
+	 * the new socket's streams can be locked, without closing the (discarded) old stream.
+	 */
 	release(): void {
 		try {
 			this.#writer.releaseLock();

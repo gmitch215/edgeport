@@ -89,6 +89,10 @@
 			"types": "./dist/irc/index.d.ts",
 			"import": "./dist/irc/index.js"
 		},
+		"./core": {
+			"types": "./dist/core/index.d.ts",
+			"import": "./dist/core/index.js"
+		},
 		"./wire": {
 			"types": "./dist/wire.d.ts",
 			"import": "./dist/wire.js"

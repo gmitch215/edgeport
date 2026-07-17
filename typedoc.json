@@ -21,6 +21,7 @@
 		"src/dns/index.ts",
 		"src/xmpp/index.ts",
 		"src/irc/index.ts",
+		"src/core/index.ts",
 		"src/wire.ts",
 		"src/crypto/index.ts",
 		"src/kex/index.ts",

@@ -24,7 +24,8 @@ const entries = {
 	xmpp: 'src/xmpp/index.ts',
 	irc: 'src/irc/index.ts',
 	util: 'src/util/index.ts',
-	// building-block subpaths (edgeport/wire, /crypto, /kex, /auth)
+	// building-block subpaths (edgeport/core, /wire, /crypto, /kex, /auth)
+	core: 'src/core/index.ts',
 	wire: 'src/wire.ts',
 	crypto: 'src/crypto/index.ts',
 	kex: 'src/kex/index.ts',
