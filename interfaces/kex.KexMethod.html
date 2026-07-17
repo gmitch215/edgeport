@@ -16,7 +16,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">KexMethod</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#hash">hash</a><span class="tsd-signature-symbol">:</span> <a href="../types/crypto.HashName.html" class="tsd-signature-type tsd-kind-type-alias">HashName</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#publickey">publicKey</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#derivesecret-1">deriveSecret</a><span class="tsd-signature-symbol">(</span><br/>        <span class="tsd-kind-parameter">peerPublicKey</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBufferLike</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a321588593e4c0159d1316e80ff0d4fafd498c5a/src/kex/index.ts#L21">src/kex/index.ts:21</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/6a79d6e6113aac70ce65850f5858bc351e17132d/src/kex/index.ts#L21">src/kex/index.ts:21</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -38,14 +38,14 @@
 <h3 class="tsd-anchor-link" id="hash"><code class="tsd-tag">Readonly</code><span>hash</span><a href="#hash" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hash</span><span class="tsd-signature-symbol">:</span> <a href="../types/crypto.HashName.html" class="tsd-signature-type tsd-kind-type-alias">HashName</a></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a321588593e4c0159d1316e80ff0d4fafd498c5a/src/kex/index.ts#L22">src/kex/index.ts:22</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/6a79d6e6113aac70ce65850f5858bc351e17132d/src/kex/index.ts#L22">src/kex/index.ts:22</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="publickey"><code class="tsd-tag">Readonly</code><span>public<wbr/>Key</span><a href="#publickey" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">publicKey</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span></div>
 <div class="tsd-comment tsd-typography"><p>Our ephemeral public key (Q_C).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a321588593e4c0159d1316e80ff0d4fafd498c5a/src/kex/index.ts#L24">src/kex/index.ts:24</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/6a79d6e6113aac70ce65850f5858bc351e17132d/src/kex/index.ts#L24">src/kex/index.ts:24</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -63,7 +63,7 @@
 <li><span><span class="tsd-kind-parameter">peerPublicKey</span>: <span class="tsd-signature-type">Uint8Array</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBufferLike</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a321588593e4c0159d1316e80ff0d4fafd498c5a/src/kex/index.ts#L26">src/kex/index.ts:26</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/6a79d6e6113aac70ce65850f5858bc351e17132d/src/kex/index.ts#L26">src/kex/index.ts:26</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
