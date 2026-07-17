@@ -151,7 +151,7 @@ services:
       - '127.0.0.1:2855:2855/tcp' # msrp relay
 
   dns:
-    image: coredns/coredns@sha256:986f04c2e15e147d00bdd51e8c51bcef3644b13ff806be7d2ff1b261d6dfbae1
+    image: coredns/coredns@sha256:900f9c109f7a33545d3c811516e8376df9019147b750f5ce3e254468769176ea
     command: ['-conf', '/Corefile']
     volumes:
       - ./dns/Corefile:/Corefile:ro
