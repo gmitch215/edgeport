@@ -76,6 +76,24 @@ component_management:
     - component_id: syslog
       name: edgeport/syslog
       paths: ['src/syslog/**']
+    - component_id: smpp
+      name: edgeport/smpp
+      paths: ['src/smpp/**']
+    - component_id: sip
+      name: edgeport/sip
+      paths: ['src/sip/**']
+    - component_id: dns
+      name: edgeport/dns
+      paths: ['src/dns/**']
+    - component_id: xmpp
+      name: edgeport/xmpp
+      paths: ['src/xmpp/**']
+    - component_id: irc
+      name: edgeport/irc
+      paths: ['src/irc/**']
+    - component_id: util
+      name: edgeport/util
+      paths: ['src/util/**']
     - component_id: wire
       name: edgeport/wire
       paths: ['src/wire.ts']
