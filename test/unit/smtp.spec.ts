@@ -340,6 +340,47 @@ describe('SMTP multi-recipient accepted list', () => {
 	});
 });
 
+describe('SMTP envelope address extraction', () => {
+	it('unwraps display-name From/To into bare addresses in the envelope', async () => {
+		const { socket, server } = mockConnection();
+		const received: Recorder = [];
+
+		const serverScript = async () => {
+			await server.writeLine('220 ready');
+			await server.readLine(); // EHLO
+			await server.writeLine('250 ok');
+			await server.readLine(); // STARTTLS
+			await server.writeLine('220 go');
+			await server.readLine(); // EHLO
+			await server.writeLine('250 ok');
+			received.push(await server.readLine()); // MAIL FROM
+			await server.writeLine('250 OK');
+			received.push(await server.readLine()); // RCPT TO
+			await server.writeLine('250 OK');
+			await server.readLine(); // DATA
+			await server.writeLine('354 go');
+			await readDataBody(server);
+			await server.writeLine('250 queued');
+		};
+
+		const clientFlow = async () => {
+			const session = await _sessionFromSocket(socket, { hostname: 'h' });
+			return session.send({
+				from: 'Support <me@example.com>',
+				to: '"Doe, John" <john@example.com>',
+				subject: 's',
+				text: 't'
+			});
+		};
+
+		const [result] = await Promise.all([clientFlow(), serverScript()]);
+
+		expect(received).toEqual(['MAIL FROM:<me@example.com>', 'RCPT TO:<john@example.com>']);
+		// the accepted list keeps the original recipient string the caller passed
+		expect(result.accepted).toEqual(['"Doe, John" <john@example.com>']);
+	});
+});
+
 describe('MIME builder', () => {
 	it('returns raw verbatim when provided', () => {
 		const raw = new TextEncoder().encode('Subject: x\r\n\r\nbody');
@@ -359,6 +400,19 @@ describe('MIME builder', () => {
 		expect(out.endsWith('Hello')).toBe(true);
 		// CRLF line endings throughout
 		expect(out).toContain('\r\n');
+	});
+
+	it('derives the Message-ID domain from a display-name From', () => {
+		const out = decoder.decode(
+			buildMime({ from: 'Support <me@mail.example.com>', to: 'b@h', subject: 'Hi', text: 'x' })
+		);
+		expect(out).toContain('From: Support <me@mail.example.com>');
+		expect(out).toMatch(/Message-ID: <[0-9a-f-]+@mail\.example\.com>/);
+	});
+
+	it('falls back to localhost for a From with no domain', () => {
+		const out = decoder.decode(buildMime({ from: 'nobody', to: 'b@h', subject: 'Hi', text: 'x' }));
+		expect(out).toMatch(/Message-ID: <[0-9a-f-]+@localhost>/);
 	});
 
 	it('builds multipart/alternative when both text and html are present', () => {

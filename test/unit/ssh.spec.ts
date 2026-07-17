@@ -1067,3 +1067,23 @@ describe('SshChannel close handshake (RFC 4254 5.3)', () => {
 		expect(countCloses(t.sent)).toBe(5);
 	});
 });
+
+describe('ssh key fingerprint', () => {
+	it('formats the OpenSSH SHA256 fingerprint of a key blob (KAT)', async () => {
+		// SHA-256("abc") base64 (standard alphabet, unpadded) is a fixed, ssh-keygen-compatible vector
+		const abc = new TextEncoder().encode('abc');
+		expect(await sshIndex.fingerprint(abc)).toBe(
+			'SHA256:ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0'
+		);
+
+		const bytes16 = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+		expect(await sshIndex.fingerprint(bytes16)).toBe(
+			'SHA256:vkXLJgW/Nr695oSEGijw/UPGmFCj3OX+26aZKO46iZE'
+		);
+	});
+
+	it('always yields the SHA256: prefix with 43 unpadded base64 chars', async () => {
+		const fp = await sshIndex.fingerprint(new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
+		expect(fp).toMatch(/^SHA256:[A-Za-z0-9+/]{43}$/);
+	});
+});
