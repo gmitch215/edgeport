@@ -77,6 +77,18 @@
 			"types": "./dist/sip/index.d.ts",
 			"import": "./dist/sip/index.js"
 		},
+		"./dns": {
+			"types": "./dist/dns/index.d.ts",
+			"import": "./dist/dns/index.js"
+		},
+		"./xmpp": {
+			"types": "./dist/xmpp/index.d.ts",
+			"import": "./dist/xmpp/index.js"
+		},
+		"./irc": {
+			"types": "./dist/irc/index.d.ts",
+			"import": "./dist/irc/index.js"
+		},
 		"./wire": {
 			"types": "./dist/wire.d.ts",
 			"import": "./dist/wire.js"

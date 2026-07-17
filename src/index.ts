@@ -16,9 +16,11 @@
  * @license MIT
  * @since 1.0.0
  */
+export * as dns from './dns';
 export * from './errors';
 export * as ftp from './ftp';
 export * as imap from './imap';
+export * as irc from './irc';
 export * as ldap from './ldap';
 export * as ldaps from './ldaps';
 export * as mqtt from './mqtt';
@@ -33,3 +35,4 @@ export * as stomp from './stomp';
 export * as syslog from './syslog';
 export * as util from './util';
 export * as ws from './ws';
+export * as xmpp from './xmpp';
