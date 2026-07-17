@@ -15,6 +15,8 @@ import { ConnectionError, ProtocolError } from '../core/errors';
 import { SshReader, SshWriter } from '../wire';
 import type { SshTransport } from './transport/transport';
 
+const textEncoder = new TextEncoder();
+
 const INITIAL_WINDOW = 2 * 1024 * 1024;
 const MAX_PACKET = 32 * 1024;
 const WINDOW_REFILL_THRESHOLD = INITIAL_WINDOW / 2;
@@ -184,7 +186,8 @@ export class SshChannel {
 	}
 
 	/** Writes data to the channel, respecting the peer send-window and max packet size. */
-	async write(data: Uint8Array): Promise<void> {
+	async write(input: Uint8Array | string): Promise<void> {
+		const data = typeof input === 'string' ? textEncoder.encode(input) : input;
 		let off = 0;
 		while (off < data.length) {
 			while (this.sendWindow <= 0) {
@@ -382,7 +385,6 @@ export class SshConnection {
 		);
 	}
 
-	/** Closes the underlying transport. */
 	close(): Promise<void> {
 		return this.transport.close();
 	}
