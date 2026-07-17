@@ -32,6 +32,7 @@ import { ProtocolError } from '../core/errors';
 import { connect as coreConnect } from '../core/socket';
 import { concatBytes } from '../crypto/primitives';
 import type { AlgorithmPrefs } from '../kex/kexinit';
+import { toBase64 } from '../util';
 import { SshConnection, type ChannelExit } from './connection';
 import { assertSafeDeletePath, shellQuote } from './shell-quote';
 import { SshTransport, type HostKeyVerifier } from './transport/transport';
@@ -338,6 +339,39 @@ export async function collect(stream: ReadableStream<Uint8Array>): Promise<Uint8
 		if (value) chunks.push(value);
 	}
 	return concatBytes(...chunks);
+}
+
+/**
+ * Computes the OpenSSH SHA-256 fingerprint of a raw SSH key blob.
+ *
+ * This is the `SHA256:...` form that `ssh-keygen -l` prints and that servers advertise for
+ * host-key pinning: the base64 (standard alphabet, no `=` padding) of the SHA-256 digest of
+ * the wire-encoded key. Pass the raw key bytes a {@link HostKeyVerifier} receives to derive a
+ * stable fingerprint to compare against a trusted value (trust-on-first-use, then pin).
+ *
+ * @param key - The raw SSH key blob (the bytes handed to {@link HostKeyVerifier.verify}).
+ * @returns The fingerprint string, e.g. `SHA256:n3b0K...` (43 base64 chars after the prefix).
+ * @since 1.0.4
+ * @example
+ * ```typescript
+ * import { connect, fingerprint } from 'edgeport/ssh';
+ *
+ * const session = await connect({
+ * 	hostname: 'box',
+ * 	username: 'u',
+ * 	password: pw,
+ * 	hostKey: {
+ * 		async verify(_type, key) {
+ * 			const fp = await fingerprint(key);
+ * 			return fp === trustedFingerprint; // pin against a stored value
+ * 		}
+ * 	}
+ * });
+ * ```
+ */
+export async function fingerprint(key: Uint8Array): Promise<string> {
+	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', key as BufferSource));
+	return `SHA256:${toBase64(digest, { pad: false })}`;
 }
 
 /** @internal the concrete session; exported only so unit tests can exercise the helpers. */
