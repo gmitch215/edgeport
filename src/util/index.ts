@@ -13,4 +13,5 @@ export * from './address';
 export * from './encoding';
 export * from './random';
 export * from './retry';
+export * from './text';
 export * from './timeout';
