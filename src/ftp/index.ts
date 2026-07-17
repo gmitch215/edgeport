@@ -675,7 +675,9 @@ export async function getFile(
 	opts: FtpConnectOptions & { path: string } & FtpGetOptions
 ): Promise<Uint8Array> {
 	await using session = await connect(opts);
-	return session.get(opts.path, { type: opts.type, offset: opts.offset });
+
+	// await before returning so the session disposes AFTER the download completes, not mid-transfer
+	return await session.get(opts.path, { type: opts.type, offset: opts.offset });
 }
 
 /**
