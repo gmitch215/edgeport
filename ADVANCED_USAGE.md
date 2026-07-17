@@ -80,6 +80,9 @@ the [Cloudflare Email Service SMTP docs](https://developers.cloudflare.com/email
 | [Certificate Lifecycle](#certificate-lifecycle)                 | LDAPS + Syslog + SMTP                    | Cert validation fails closed -> alert + audit                    |
 | [Carrier SMS Delivery](#carrier-sms-delivery)                   | SMPP + SMS-over-email + Syslog + util    | Carrier SMPP delivery + receipt, email-gateway fallback, audit   |
 | [SIP Messaging & Alerting](#sip-messaging--alerting)            | SIP + Syslog                             | Register (RFC 5626), digest MESSAGE routing send+receive, audit  |
+| [DNS Recovery Agent](#dns-recovery-agent)                       | DNS + SSH + SMTP + Syslog                | DNS discovery, SSH health probe + recovery, ordered audit, email |
+| [XMPP ChatOps Bot](#xmpp-chatops-bot)                           | XMPP + SSH + Syslog + SMTP               | Chat command drives SSH exec + reply, audit, email-on-failure    |
+| [IRC NOC Alert Bridge](#irc-noc-alert-bridge)                   | IRC + DNS + SMTP + Syslog                | DNS-driven status to an ops channel, audit, emailed digest       |
 
 ---
 
@@ -168,6 +171,7 @@ logs over an interactive `shell()` channel, and verify a clean `await using` dis
 ```typescript
 import { connect as sshConnect } from 'edgeport/ssh';
 import { connect as sftpConnect } from 'edgeport/sftp';
+import { toUtf8 } from 'edgeport/util';
 
 await using ssh = await sshConnect({
 	hostname: env.BOX,
@@ -191,9 +195,9 @@ try {
 await ssh.chmod('/srv/app.tar', 0o600);
 await ssh.exec('systemctl restart app');
 await using shell = await ssh.shell();
-await shell.write(new TextEncoder().encode('tail -n 20 /var/log/app.log\n'));
+await shell.write('tail -n 20 /var/log/app.log\n');
 for await (const chunk of shell.stdout) {
-	console.log(new TextDecoder().decode(chunk));
+	console.log(toUtf8(chunk));
 	break;
 }
 // the `await using` scope closes both channels cleanly on exit
@@ -336,11 +340,7 @@ for await (const m of sub.subscribe('ingest/#', { qos: 1 })) {
 
 // NATS JetStream durable continuity is driven over core request-reply to $JS.API.*:
 await using nc = await natsConnect({ hostname: env.NATS, token: env.NATS_TOKEN });
-const enc = new TextEncoder();
-await nc.request(
-	'$JS.API.STREAM.CREATE.EVENTS',
-	enc.encode(JSON.stringify({ name: 'EVENTS', subjects: ['events.>'] }))
-);
+await nc.requestJson('$JS.API.STREAM.CREATE.EVENTS', { name: 'EVENTS', subjects: ['events.>'] });
 await nc.publishJson('events.created', { id: 1 }); // acked + persisted by the stream
 // a durable consumer replays un-acked messages after a reconnect - see the spec for the full dance
 ```
@@ -418,14 +418,13 @@ is not redelivered. Every stage writes an audited Syslog trail.
 
 ```typescript
 import { getFile } from 'edgeport/ftp';
+import { toUtf8 } from 'edgeport/util';
 import { connect as mqttConnect } from 'edgeport/mqtt';
 import { connect as stompConnect } from 'edgeport/stomp';
 import { connect as syslogConnect } from 'edgeport/syslog';
 
 // pick up the batch the lab dropped (plain FTP; FTPS is not supported - see note)
-const batch = new TextDecoder().decode(
-	await getFile({ hostname: env.FTP, username, password, path: '/in/lab.hl7' })
-);
+const batch = toUtf8(await getFile({ hostname: env.FTP, username, password, path: '/in/lab.hl7' }));
 const messages = batch.split('\r\r'); // one HL7 message per block
 
 await using mqtt = await mqttConnect({ hostname: env.BROKER, clientId: 'hl7-engine' });
@@ -1023,6 +1022,181 @@ for await (const m of oncall.messages()) {
 and SIP trunks from a Worker.
 
 ---
+
+## DNS Recovery Agent
+
+**Modules:** DNS + SSH + SMTP + Syslog, [`dns-recovery.spec.ts`](./test/integration/recipes/dns-recovery.spec.ts)
+
+### Prerequisites
+
+- **DNS resolver** `DNS_RESOLVER`; discovers where the service lives (a non-Cloudflare resolver from a Worker).
+- **SSH host** `BOX` + `SSH_KEY`; the box the recovery command runs on.
+- **SMTP** `SMTP` + creds; the ops-notification channel.
+- **Syslog** `SIEM`; the incident audit trail.
+
+See [Environment & Services](#environment--services) for value formats and how to obtain each.
+
+A self-healing agent for a scheduled Worker: resolve the service's record over DNS, probe its
+health over SSH, run a recovery command when it is down, re-confirm, and email ops the before/after
+while auditing every stage to Syslog. Because a Worker cannot reach `1.1.1.1`, pass a non-Cloudflare
+resolver.
+
+```typescript
+import { resolve4, RESOLVERS } from 'edgeport/dns';
+import { connect as sshConnect } from 'edgeport/ssh';
+import { send as smtpSend } from 'edgeport/smtp';
+import { connect as syslogConnect, Severity, Facility } from 'edgeport/syslog';
+
+// 1. discovery: where does the service live right now
+const [ip] = await resolve4('app.example.com', { server: env.DNS_RESOLVER ?? RESOLVERS.google });
+
+await using log = await syslogConnect({ hostname: env.SIEM, appName: 'dns-recovery' });
+await using ssh = await sshConnect({
+	hostname: env.BOX,
+	username: 'ops',
+	privateKey: { pem: env.SSH_KEY }
+});
+
+// 2. health probe over ssh
+const probe = await ssh.exec('systemctl is-active myapp || echo DOWN');
+const healthy = probe.stdoutText.trim() === 'active';
+
+if (!healthy) {
+	await log.log({
+		severity: Severity.warning,
+		facility: Facility.daemon,
+		message: `health-down ${ip}`
+	});
+
+	// 3. recovery action, then re-confirm
+	await ssh.exec('sudo systemctl restart myapp');
+	const after = await ssh.exec('systemctl is-active myapp || echo DOWN');
+	const recovered = after.stdoutText.trim() === 'active';
+	await log.log({
+		severity: Severity.notice,
+		facility: Facility.daemon,
+		message: `recovery recovered=${recovered}`
+	});
+
+	// 4. tell ops what happened
+	await smtpSend({
+		hostname: env.SMTP,
+		auth: { username: env.SMTP_USER, password: env.SMTP_PW },
+		from: 'noc@example.com',
+		to: env.ONCALL,
+		subject: recovered ? 'RECOVERED: myapp' : 'STILL DOWN: myapp',
+		text: `app.example.com (${ip}) was down; restart ${recovered ? 'succeeded' : 'FAILED'}.`
+	});
+}
+```
+
+**Use case:** unattended DNS-driven service recovery with an audited paper trail and an ops email.
+
+## XMPP ChatOps Bot
+
+**Modules:** XMPP + SSH + Syslog + SMTP, [`chatops.spec.ts`](./test/integration/recipes/chatops.spec.ts)
+
+### Prerequisites
+
+- **XMPP account** `XMPP_JID` + `XMPP_PW`; the bot's identity.
+- **SSH host** `BOX` + `SSH_KEY`; where commands run.
+- **Syslog** `SIEM`; the command audit trail.
+- **SMTP** `SMTP` + creds; the failure-alert channel.
+
+See [Environment & Services](#environment--services) for value formats and how to obtain each.
+
+A deploy bot that takes commands over chat: an operator messages the bot's JID, the bot runs the
+command over SSH, streams the result back over XMPP, audits it to Syslog, and emails ops when a
+command fails. A long-lived receiving session belongs in a Durable Object (an open socket keeps a
+DO alive ~15 min).
+
+```typescript
+import { connect as xmppConnect } from 'edgeport/xmpp';
+import { connect as sshConnect } from 'edgeport/ssh';
+import { connect as syslogConnect } from 'edgeport/syslog';
+import { send as smtpSend } from 'edgeport/smtp';
+
+await using bot = await xmppConnect({ jid: env.XMPP_JID, password: env.XMPP_PW });
+await bot.setPresence('online');
+await using log = await syslogConnect({ hostname: env.SIEM, appName: 'chatops' });
+await using ssh = await sshConnect({
+	hostname: env.BOX,
+	username: 'deploy',
+	privateKey: { pem: env.SSH_KEY }
+});
+
+for await (const msg of bot.messages()) {
+	if (!msg.body.startsWith('run:')) continue;
+	const cmd = msg.body.slice('run:'.length).trim();
+	const res = await ssh.exec(cmd);
+	await log.info(`chatops from=${msg.from} code=${res.code}`);
+
+	if (res.code !== 0) {
+		await smtpSend({
+			hostname: env.SMTP,
+			auth: { username: env.SMTP_USER, password: env.SMTP_PW },
+			from: 'chatops@example.com',
+			to: env.ONCALL,
+			subject: `deploy failed (${res.code})`,
+			text: `command "${cmd}" exited ${res.code}`
+		});
+	}
+	// stream the result back to whoever asked
+	await bot.send({
+		to: msg.from,
+		body: `exit ${res.code}: ${res.stdoutText}`
+	});
+}
+```
+
+**Use case:** authenticated chat-driven operations with an audit trail and failure escalation.
+
+## IRC NOC Alert Bridge
+
+**Modules:** IRC + DNS + SMTP + Syslog, [`noc-alerts.spec.ts`](./test/integration/recipes/noc-alerts.spec.ts)
+
+### Prerequisites
+
+- **IRC server** `IRC` + `IRC_NICK`; the ops channel the bridge posts to.
+- **DNS resolver** `DNS_RESOLVER`; discovers the endpoint to check.
+- **SMTP** `SMTP` + creds; the emailed digest.
+- **Syslog** `SIEM`; the alert audit trail.
+
+See [Environment & Services](#environment--services) for value formats and how to obtain each.
+
+A monitoring bridge that keeps a NOC channel and an inbox in sync: resolve a service endpoint over
+DNS, announce its status to an IRC ops channel where on-call sees it live, audit each alert to
+Syslog, and email a digest over SMTP.
+
+```typescript
+import { connect as ircConnect } from 'edgeport/irc';
+import { resolve4, resolveSrv, RESOLVERS } from 'edgeport/dns';
+import { connect as syslogConnect } from 'edgeport/syslog';
+import { send as smtpSend } from 'edgeport/smtp';
+
+const resolver = env.DNS_RESOLVER ?? RESOLVERS.quad9;
+const [ip] = await resolve4('sip.example.com', { server: resolver });
+const [srv] = await resolveSrv('_sip._tcp.example.com', { server: resolver });
+
+await using irc = await ircConnect({ hostname: env.IRC, nick: env.IRC_NICK });
+await irc.join('#noc');
+await using log = await syslogConnect({ hostname: env.SIEM, appName: 'noc-bridge' });
+
+const alert = `ALERT sip.example.com -> ${ip}:${srv?.port} DEGRADED`;
+await irc.say('#noc', alert);
+await log.error(alert);
+
+await smtpSend({
+	hostname: env.SMTP,
+	auth: { username: env.SMTP_USER, password: env.SMTP_PW },
+	from: 'noc@example.com',
+	to: env.ONCALL,
+	subject: 'NOC digest',
+	text: alert
+});
+```
+
+**Use case:** DNS-driven service monitoring fanned out to a chat channel, an audit log, and email.
 
 ## Notes on Test Infrastructure
 
