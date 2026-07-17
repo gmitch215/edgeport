@@ -149,3 +149,40 @@ services:
     ports:
       - '127.0.0.1:5060:5060/tcp' # sip over tcp (the workers transport)
       - '127.0.0.1:2855:2855/tcp' # msrp relay
+
+  dns:
+    image: coredns/coredns@sha256:986f04c2e15e147d00bdd51e8c51bcef3644b13ff806be7d2ff1b261d6dfbae1
+    command: ['-conf', '/Corefile']
+    volumes:
+      - ./dns/Corefile:/Corefile:ro
+      - ./dns/db.edgeport.test:/zones/db.edgeport.test:ro
+      - ./dns/db.10.0.1:/zones/db.10.0.1:ro
+    ports:
+      - '127.0.0.1:5354:53/tcp' # dns over tcp (the workers transport)
+      - '127.0.0.1:5354:53/udp'
+
+  xmpp:
+    image: ghcr.io/processone/ejabberd@sha256:68482e33ff11934e73ef2881cf455ccefc1e03b31203f3ab651f4b2b1152b4a8
+    environment:
+      CTL_ON_CREATE: 'register tester localhost testpass ; register tester2 localhost testpass'
+    volumes:
+      - ./xmpp/ejabberd.yml:/opt/ejabberd/conf/ejabberd.yml:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'ejabberdctl registered_users localhost | grep -qx tester2 || exit 1']
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    ports:
+      - '127.0.0.1:5222:5222' # xmpp c2s (plaintext)
+
+  irc:
+    image: ghcr.io/ergochat/ergo@sha256:0ccde041f89f4b526a2d445b25078de80d3fa43fd8d3208deb242ae6b2b81d61
+    volumes:
+      - ./irc/ircd.yaml:/ircd/ircd.yaml:ro
+    healthcheck:
+      test: ['CMD', 'sh', '-c', 'nc -z 127.0.0.1 6667']
+      interval: 2s
+      timeout: 2s
+      retries: 40
+    ports:
+      - '127.0.0.1:6667:6667' # irc (plaintext)
