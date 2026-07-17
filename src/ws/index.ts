@@ -11,6 +11,9 @@
  */
 import { ConnectionError, ProtocolError } from '../core';
 
+// shared decoder for binary frames exposed as text()/json()
+const binaryDecoder = new TextDecoder();
+
 /** Options for {@link connect}. */
 export interface WsConnectOptions {
 	/** Subprotocols to offer; sent as the `Sec-WebSocket-Protocol` header. */
@@ -33,6 +36,15 @@ export type WsMessage =
 			type: 'text';
 			data: string;
 			/**
+			 * Returns the message as text (the identity for a text frame).
+			 *
+			 * Present on both frame types so `msg.text()` works without branching on `type`.
+			 *
+			 * @returns The text payload.
+			 * @since 1.0.4
+			 */
+			text(): string;
+			/**
 			 * Parses the text payload as JSON.
 			 *
 			 * @typeParam T - The expected shape of the decoded value.
@@ -42,7 +54,29 @@ export type WsMessage =
 			 */
 			json<T = unknown>(): T;
 	  }
-	| { type: 'binary'; data: Uint8Array };
+	| {
+			type: 'binary';
+			data: Uint8Array;
+			/**
+			 * Decodes the binary payload as UTF-8 text.
+			 *
+			 * Present on both frame types so `msg.text()` works without branching on `type` - handy
+			 * for servers that send JSON or text over binary frames.
+			 *
+			 * @returns The payload decoded as UTF-8.
+			 * @since 1.0.4
+			 */
+			text(): string;
+			/**
+			 * Decodes the binary payload as UTF-8 and parses it as JSON.
+			 *
+			 * @typeParam T - The expected shape of the decoded value.
+			 * @returns The parsed value.
+			 * @throws {ProtocolError} If the decoded payload is not valid JSON.
+			 * @since 1.0.4
+			 */
+			json<T = unknown>(): T;
+	  };
 
 /**
  * A live WebSocket connection.
@@ -123,20 +157,30 @@ function decodeTextJson<T>(text: string): T {
 // normalizes a 'message' event payload into a WsMessage
 function toWsMessage(data: unknown): WsMessage {
 	if (typeof data === 'string') {
-		return { type: 'text', data, json: <T = unknown>(): T => decodeTextJson<T>(data) };
-	}
-	if (data instanceof Uint8Array) return { type: 'binary', data };
-	if (data instanceof ArrayBuffer) return { type: 'binary', data: new Uint8Array(data) };
-	if (ArrayBuffer.isView(data)) {
-		const view = data as ArrayBufferView;
 		return {
-			type: 'binary',
-			data: new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+			type: 'text',
+			data,
+			text: () => data,
+			json: <T = unknown>(): T => decodeTextJson<T>(data)
 		};
 	}
-	throw new ProtocolError('received a websocket message of an unsupported type', {
-		protocol: 'ws'
-	});
+	let bytes: Uint8Array;
+	if (data instanceof Uint8Array) bytes = data;
+	else if (data instanceof ArrayBuffer) bytes = new Uint8Array(data);
+	else if (ArrayBuffer.isView(data)) {
+		const view = data as ArrayBufferView;
+		bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+	} else {
+		throw new ProtocolError('received a websocket message of an unsupported type', {
+			protocol: 'ws'
+		});
+	}
+	return {
+		type: 'binary',
+		data: bytes,
+		text: () => binaryDecoder.decode(bytes),
+		json: <T = unknown>(): T => decodeTextJson<T>(binaryDecoder.decode(bytes))
+	};
 }
 
 // a reader parked in next(), carrying both halves of its promise

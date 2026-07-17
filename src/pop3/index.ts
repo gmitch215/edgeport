@@ -75,6 +75,16 @@ export interface Pop3Session extends AsyncDisposable {
 	 */
 	retrieve(id: number): Promise<Uint8Array>;
 	/**
+	 * Retrieves a message and returns it as UTF-8 text, so callers do not build a `TextDecoder`.
+	 * Equivalent to decoding {@link retrieve} but without materializing the intermediate bytes.
+	 *
+	 * @param id - The message number to retrieve.
+	 * @returns The message as text.
+	 * @throws {ProtocolError} If the server rejects the command.
+	 * @since 1.0.4
+	 */
+	retrieveText(id: number): Promise<string>;
+	/**
 	 * Marks a message for deletion via `DELE` (applied on `QUIT`).
 	 *
 	 * @param id - The message number to delete.
@@ -286,9 +296,17 @@ class Pop3SessionImpl implements Pop3Session {
 	}
 
 	async retrieve(id: number): Promise<Uint8Array> {
+		return encoder.encode(await this.#retrieveRaw(id));
+	}
+
+	async retrieveText(id: number): Promise<string> {
+		return this.#retrieveRaw(id);
+	}
+
+	// RETR the message and return the server's text as-is (retrieve encodes it; retrieveText does not)
+	async #retrieveRaw(id: number): Promise<string> {
 		await this.#client.command(`RETR ${id}`);
-		const body = await this.#client.readMultiline();
-		return encoder.encode(body);
+		return this.#client.readMultiline();
 	}
 
 	async delete(id: number): Promise<void> {

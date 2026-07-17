@@ -55,6 +55,14 @@ export interface ImapMessage {
 	size?: number;
 	/** Raw message bytes, when the body was fetched. */
 	body?: Uint8Array;
+	/**
+	 * Decodes the raw {@link body} as UTF-8 text, or returns `''` when no body was fetched, so
+	 * callers do not build a `TextDecoder`. The raw bytes remain on {@link body}.
+	 *
+	 * @returns The decoded message body.
+	 * @since 1.0.4
+	 */
+	text(): string;
 }
 
 /** A search query, translated to IMAP `SEARCH` criteria. */
@@ -476,7 +484,11 @@ function buildFetchItems(fields: ImapFetchFields): string {
 // parses one "* N FETCH (...)" untagged line (with any literal already spliced in)
 function parseFetch(line: string): ImapMessage | null {
 	if (!/^\* \d+ FETCH /.test(line)) return null;
-	const msg: ImapMessage = { uid: 0, flags: [] };
+	const msg: ImapMessage = {
+		uid: 0,
+		flags: [],
+		text: () => (msg.body ? decoder.decode(msg.body) : '')
+	};
 
 	const uid = /\bUID (\d+)/.exec(line);
 	if (uid && uid[1]) msg.uid = Number(uid[1]);
