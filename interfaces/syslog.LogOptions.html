@@ -23,7 +23,7 @@ except <code>facility</code> (defaults to <code>user</code>), <code>timestamp</c
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">LogOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#appname">appName</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#facility">facility</a><span class="tsd-signature-symbol">?:</span> <a href="../types/syslog.FacilityInput.html" class="tsd-signature-type tsd-kind-type-alias">FacilityInput</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#hostname">hostname</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#message">message</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#msgid">msgId</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#procid">procId</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#severity">severity</a><span class="tsd-signature-symbol">:</span> <a href="../types/syslog.SeverityInput.html" class="tsd-signature-type tsd-kind-type-alias">SeverityInput</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#structureddata">structuredData</a><span class="tsd-signature-symbol">?:</span> <a href="syslog.StructuredDataElement.html" class="tsd-signature-type tsd-kind-interface">StructuredDataElement</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#timestamp">timestamp</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Date</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L168">src/syslog/index.ts:168</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L168">src/syslog/index.ts:168</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -50,63 +50,63 @@ except <code>facility</code> (defaults to <code>user</code>), <code>timestamp</c
 <div class="tsd-comment tsd-typography"><p>APP-NAME override for this message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L178">src/syslog/index.ts:178</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L178">src/syslog/index.ts:178</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="facility"><code class="tsd-tag">Optional</code><span>facility</span><a href="#facility" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">facility</span><span class="tsd-signature-symbol">?:</span> <a href="../types/syslog.FacilityInput.html" class="tsd-signature-type tsd-kind-type-alias">FacilityInput</a></div>
 <div class="tsd-comment tsd-typography"><p>Facility as the enum, number, or lowercase name; defaults to <code>user</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L172">src/syslog/index.ts:172</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L172">src/syslog/index.ts:172</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="hostname"><code class="tsd-tag">Optional</code><span>hostname</span><a href="#hostname" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hostname</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>HOSTNAME override for this message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L186">src/syslog/index.ts:186</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L186">src/syslog/index.ts:186</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="message"><span>message</span><a href="#message" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">message</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The free-form message text (a leading BOM + UTF-8 is preserved as given).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L174">src/syslog/index.ts:174</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L174">src/syslog/index.ts:174</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="msgid"><code class="tsd-tag">Optional</code><span>msg<wbr/>Id</span><a href="#msgid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">msgId</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>MSGID override for this message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L180">src/syslog/index.ts:180</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L180">src/syslog/index.ts:180</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="procid"><code class="tsd-tag">Optional</code><span>proc<wbr/>Id</span><a href="#procid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">procId</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>PROCID override for this message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L182">src/syslog/index.ts:182</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L182">src/syslog/index.ts:182</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="severity"><span>severity</span><a href="#severity" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">severity</span><span class="tsd-signature-symbol">:</span> <a href="../types/syslog.SeverityInput.html" class="tsd-signature-type tsd-kind-type-alias">SeverityInput</a></div>
 <div class="tsd-comment tsd-typography"><p>Severity as the enum, number, or lowercase name.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L170">src/syslog/index.ts:170</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L170">src/syslog/index.ts:170</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="structureddata"><code class="tsd-tag">Optional</code><span>structured<wbr/>Data</span><a href="#structureddata" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">structuredData</span><span class="tsd-signature-symbol">?:</span> <a href="syslog.StructuredDataElement.html" class="tsd-signature-type tsd-kind-interface">StructuredDataElement</a><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Structured-data elements, or omit for the NIL value.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L176">src/syslog/index.ts:176</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L176">src/syslog/index.ts:176</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="timestamp"><code class="tsd-tag">Optional</code><span>timestamp</span><a href="#timestamp" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">timestamp</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Date</span></div>
 <div class="tsd-comment tsd-typography"><p>TIMESTAMP as a <code>Date</code> or pre-formatted string; defaults to now.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/syslog/index.ts#L184">src/syslog/index.ts:184</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L184">src/syslog/index.ts:184</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

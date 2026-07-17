@@ -23,7 +23,7 @@ delivery receipt (<code>esm_class</code> has the <a href="../variables/smpp.ESM_
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">SmppDeliverMessage</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#datacoding">dataCoding</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#destination">destination</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#esmclass">esmClass</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#isdeliveryreceipt">isDeliveryReceipt</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#payload">payload</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#sequence">sequence</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#source">source</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#tlvs">tlvs</a><span class="tsd-signature-symbol">:</span> <a href="smpp.Tlv.html" class="tsd-signature-type tsd-kind-interface">Tlv</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#receipt-1">receipt</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="smpp.DeliveryReceipt.html" class="tsd-signature-type tsd-kind-interface">DeliveryReceipt</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#text-1">text</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L183">src/smpp/index.ts:183</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L183">src/smpp/index.ts:183</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -54,56 +54,56 @@ delivery receipt (<code>esm_class</code> has the <a href="../variables/smpp.ESM_
 <div class="tsd-comment tsd-typography"><p>The <code>data_coding</code> the message was delivered with.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L189">src/smpp/index.ts:189</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L189">src/smpp/index.ts:189</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="destination"><span>destination</span><a href="#destination" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">destination</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Destination address of the inbound message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L187">src/smpp/index.ts:187</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L187">src/smpp/index.ts:187</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="esmclass"><span>esm<wbr/>Class</span><a href="#esmclass" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">esmClass</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>The raw <code>esm_class</code> byte.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L191">src/smpp/index.ts:191</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L191">src/smpp/index.ts:191</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="isdeliveryreceipt"><span>is<wbr/>Delivery<wbr/>Receipt</span><a href="#isdeliveryreceipt" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">isDeliveryReceipt</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 <div class="tsd-comment tsd-typography"><p>Whether the <code>esm_class</code> flags this as an SMSC delivery receipt.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L195">src/smpp/index.ts:195</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L195">src/smpp/index.ts:195</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="payload"><span>payload</span><a href="#payload" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">payload</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span></div>
 <div class="tsd-comment tsd-typography"><p>The raw message body octets.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L193">src/smpp/index.ts:193</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L193">src/smpp/index.ts:193</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sequence"><span>sequence</span><a href="#sequence" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">sequence</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>The <code>sequence_number</code> of the <code>deliver_sm</code> (already acknowledged by the session).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L197">src/smpp/index.ts:197</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L197">src/smpp/index.ts:197</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="source"><span>source</span><a href="#source" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">source</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Source address of the inbound message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L185">src/smpp/index.ts:185</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L185">src/smpp/index.ts:185</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="tlvs"><span>tlvs</span><a href="#tlvs" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">tlvs</span><span class="tsd-signature-symbol">:</span> <a href="smpp.Tlv.html" class="tsd-signature-type tsd-kind-interface">Tlv</a><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Any optional parameters (TLVs) carried on the PDU.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L199">src/smpp/index.ts:199</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L199">src/smpp/index.ts:199</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -120,7 +120,7 @@ regardless, so a non-receipt body simply yields an object of undefined fields.</
 <h4 class="tsd-returns-title">Returns <a href="smpp.DeliveryReceipt.html" class="tsd-signature-type tsd-kind-interface">DeliveryReceipt</a></h4><p>The parsed delivery-receipt fields.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L214">src/smpp/index.ts:214</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L214">src/smpp/index.ts:214</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="text"><span>text</span><a href="#text" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -132,7 +132,7 @@ regardless, so a non-receipt body simply yields an object of undefined fields.</
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4><p>The decoded message body.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/smpp/index.ts#L205">src/smpp/index.ts:205</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/smpp/index.ts#L205">src/smpp/index.ts:205</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

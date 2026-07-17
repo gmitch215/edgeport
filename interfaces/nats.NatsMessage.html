@@ -20,7 +20,7 @@
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">NatsMessage</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#data">data</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#reply">reply</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#sid">sid</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#subject">subject</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#json-1">json</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#jsont">T</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#jsont">T</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#respond-1">respond</a><span class="tsd-signature-symbol">?</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#text-1">text</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L92">src/nats/index.ts:92</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L92">src/nats/index.ts:92</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -48,28 +48,28 @@
 <div class="tsd-comment tsd-typography"><p>The raw payload bytes.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L100">src/nats/index.ts:100</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L100">src/nats/index.ts:100</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="reply"><code class="tsd-tag">Optional</code><span>reply</span><a href="#reply" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">reply</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The reply subject, when the publisher set one (request-reply).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L98">src/nats/index.ts:98</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L98">src/nats/index.ts:98</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="sid"><span>sid</span><a href="#sid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">sid</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The subscription id that received it.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L96">src/nats/index.ts:96</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L96">src/nats/index.ts:96</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="subject"><span>subject</span><a href="#subject" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">subject</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The subject the message was published to.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L94">src/nats/index.ts:94</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L94">src/nats/index.ts:94</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -97,7 +97,7 @@
 <h4 class="tsd-anchor-link" id="since-1">Since<a href="#since-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>1.0.2</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L116">src/nats/index.ts:116</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L116">src/nats/index.ts:116</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="respond"><code class="tsd-tag">Optional</code><span>respond</span><a href="#respond" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -124,7 +124,7 @@ throws. The value is <code>JSON.stringify</code>-ed and published as UTF-8.</p>
 <h4 class="tsd-anchor-link" id="since-2">Since<a href="#since-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>1.0.2</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L128">src/nats/index.ts:128</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L128">src/nats/index.ts:128</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="text"><span>text</span><a href="#text" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -140,7 +140,7 @@ throws. The value is <code>JSON.stringify</code>-ed and published as UTF-8.</p>
 <h4 class="tsd-anchor-link" id="since-3">Since<a href="#since-3" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>1.0.2</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/c525d0325a18b452ccade1f3da4191ca3f78a031/src/nats/index.ts#L107">src/nats/index.ts:107</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/index.ts#L107">src/nats/index.ts:107</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
