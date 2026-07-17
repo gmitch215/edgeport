@@ -23,6 +23,14 @@ it('uploads, lists, downloads and deletes a file (passive mode)', async () => {
 	await ftp.delete(path);
 });
 
+it('put accepts a string; getText decodes without a TextDecoder', async () => {
+	const path = `edgeport-str-${Math.floor(Date.now()).toString(36)}.txt`;
+	await using ftp = await connect(base);
+	await ftp.put(path, 'ftp string body\n'); // string, not bytes
+	expect(await ftp.getText(path)).toBe('ftp string body\n');
+	await ftp.delete(path);
+});
+
 it('rejects bad credentials with an error', async () => {
 	await expect(connect({ ...base, password: 'wrong' })).rejects.toBeTruthy();
 });
