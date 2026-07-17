@@ -555,7 +555,11 @@ describe('ftp text/json round-trips', () => {
 		await withSession(async (session) => {
 			let captured: { path: string; data: Uint8Array; opts?: unknown } | undefined;
 			session.put = async (path, data, opts) => {
-				captured = { path, data, opts };
+				captured = {
+					path,
+					data: typeof data === 'string' ? new TextEncoder().encode(data) : data,
+					opts
+				};
 			};
 			await session.putText('/note.txt', 'hello world\n', { type: 'ascii' });
 			expect(captured!.path).toBe('/note.txt');
@@ -575,7 +579,7 @@ describe('ftp text/json round-trips', () => {
 		await withSession(async (session) => {
 			let stored: Uint8Array = new Uint8Array();
 			session.put = async (_path, data) => {
-				stored = data;
+				stored = typeof data === 'string' ? new TextEncoder().encode(data) : data;
 			};
 			session.get = async () => stored;
 			await session.putText('/note.txt', 'utf-8 text: cafe');
@@ -587,7 +591,7 @@ describe('ftp text/json round-trips', () => {
 		await withSession(async (session) => {
 			let stored: Uint8Array = new Uint8Array();
 			session.put = async (_path, data) => {
-				stored = data;
+				stored = typeof data === 'string' ? new TextEncoder().encode(data) : data;
 			};
 			session.get = async () => stored;
 			const value = { name: 'edge', nested: { n: 1 } };
