@@ -10,22 +10,13 @@
  * @author Gregory Mitchell
  * @since 1.0.0
  */
-import { ConnectionError, TimeoutError } from './errors';
+import { withTimeout } from '../util/timeout';
+import { ConnectionError } from './errors';
 
 const CR = 0x0d;
 const LF = 0x0a;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-
-/** Rejects with {@link TimeoutError} if `promise` does not settle within `ms`. */
-function withTimeout<T>(promise: Promise<T>, ms: number | undefined, what: string): Promise<T> {
-	if (ms === undefined || ms === Infinity) return promise;
-	let timer: ReturnType<typeof setTimeout>;
-	const timeout = new Promise<never>((_, reject) => {
-		timer = setTimeout(() => reject(new TimeoutError(`${what} timed out after ${ms}ms`)), ms);
-	});
-	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
-}
 
 /**
  * Reads exact byte counts and delimited frames from a byte stream, hiding TCP chunking.
