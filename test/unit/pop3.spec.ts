@@ -62,6 +62,18 @@ describe('pop3 implicit-tls login + stat + list + retrieve + delete', () => {
 			'Subject: Test\r\n\r\nBody line one.\r\n.hidden leading dot'
 		);
 
+		// retrieveText re-runs RETR and returns the server text directly (no byte round-trip)
+		const retrTextScript = (async () => {
+			expect(await server.readLine()).toBe('RETR 1');
+			await server.writeLine('+OK 120 octets');
+			await server.writeLine('Subject: Test');
+			await server.writeLine('');
+			await server.writeLine('Body line one.');
+			await server.writeLine('.');
+		})();
+		const text = (await Promise.all([session.retrieveText(1), retrTextScript]))[0];
+		expect(text).toBe('Subject: Test\r\n\r\nBody line one.');
+
 		// DELE
 		const deleScript = (async () => {
 			expect(await server.readLine()).toBe('DELE 2');

@@ -78,6 +78,7 @@ describe('imap implicit-tls login + select + search + fetch', () => {
 		expect(first.flags).toEqual(['\\Seen']);
 		expect(first.size).toBe(42);
 		expect(new TextDecoder().decode(first.body!)).toBe(bodyText);
+		expect(first.text()).toBe(bodyText);
 		expect(first.headers?.subject).toBe('Hi there');
 		expect(first.headers?.from).toBe('a@b.com');
 
