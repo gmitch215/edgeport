@@ -215,7 +215,8 @@ export async function fetchRecent(
 	await session.select(opts.mailbox ?? 'INBOX');
 	const uids = await session.search({ all: true });
 	const recent = uids.slice(Math.max(0, uids.length - opts.count));
-	return session.fetch(recent, { flags: true, body: true, size: true });
+	// await before returning so the session disposes AFTER the fetch completes, not mid-operation
+	return await session.fetch(recent, { flags: true, body: true, size: true });
 }
 
 /**

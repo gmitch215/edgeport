@@ -101,11 +101,12 @@ export interface SftpSession extends AsyncDisposable {
 	/** Reads an entire file into memory. */
 	readFile(path: string): Promise<Uint8Array>;
 	/**
-	 * Writes a file. With no `offset` the file is created/truncated; with `offset` the data
-	 * is written at that byte position without truncating - the basis for resuming an
+	 * Writes a file. `data` may be bytes or a string (a string is UTF-8 encoded, so callers do
+	 * not build a `TextEncoder`). With no `offset` the file is created/truncated; with `offset`
+	 * the data is written at that byte position without truncating - the basis for resuming an
 	 * interrupted upload (stat the partial file, then write the remainder at its size).
 	 */
-	writeFile(path: string, data: Uint8Array, opts?: SftpWriteOptions): Promise<void>;
+	writeFile(path: string, data: Uint8Array | string, opts?: SftpWriteOptions): Promise<void>;
 	/** Streams a file's contents. */
 	createReadStream(path: string): ReadableStream<Uint8Array>;
 	/** Streams writes into a file (created/truncated, or appended at `offset` to resume). */
@@ -210,7 +211,9 @@ class Sftp implements SftpSession {
 		private readonly ownedSession?: SshSession
 	) {
 		this.#reader = new StreamFramedReader(channel.stdout);
-		void this.#pump(); // background reader; errors settle pending requests internally
+		// background reader; errors settle pending requests internally. the extra .catch guards
+		// against a teardown-time rejection escaping the fire-and-forget launch as unhandled
+		void this.#pump().catch(() => {});
 	}
 
 	async init(): Promise<void> {
@@ -349,7 +352,8 @@ class Sftp implements SftpSession {
 		return concatBytes(...chunks);
 	}
 
-	async writeFile(path: string, data: Uint8Array, opts?: SftpWriteOptions): Promise<void> {
+	async writeFile(path: string, data: Uint8Array | string, opts?: SftpWriteOptions): Promise<void> {
+		const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
 		const start = opts?.offset ?? 0;
 		// offset > 0 resumes an existing file, so do not truncate
 		const flags =
@@ -357,8 +361,8 @@ class Sftp implements SftpSession {
 		const handle = await this.#open(path, flags);
 		try {
 			let o = 0;
-			while (o < data.length) {
-				const chunk = data.subarray(o, o + READ_CHUNK);
+			while (o < bytes.length) {
+				const chunk = bytes.subarray(o, o + READ_CHUNK);
 				this.#expectStatus(
 					await this.#request((w, id) =>
 						w
@@ -496,7 +500,7 @@ class Sftp implements SftpSession {
 	}
 
 	async writeText(path: string, content: string, opts?: SftpWriteOptions): Promise<void> {
-		await this.writeFile(path, new TextEncoder().encode(content), opts);
+		await this.writeFile(path, content, opts);
 	}
 
 	async readJson<T = unknown>(path: string): Promise<T> {
@@ -613,7 +617,8 @@ export async function connect(
  */
 export async function getFile(opts: SshConnectOptions & { path: string }): Promise<Uint8Array> {
 	await using sftp = await connect(opts);
-	return sftp.readFile(opts.path);
+	// await before returning so the session disposes AFTER the read completes, not mid-operation
+	return await sftp.readFile(opts.path);
 }
 
 /**
@@ -623,7 +628,7 @@ export async function getFile(opts: SshConnectOptions & { path: string }): Promi
  * @since 1.0.0
  */
 export async function putFile(
-	opts: SshConnectOptions & { path: string; data: Uint8Array }
+	opts: SshConnectOptions & { path: string; data: Uint8Array | string }
 ): Promise<void> {
 	await using sftp = await connect(opts);
 	await sftp.writeFile(opts.path, opts.data);
