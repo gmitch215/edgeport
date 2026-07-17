@@ -23,6 +23,7 @@ import {
 	type FramedReader,
 	type FramedWriter
 } from '../core';
+import { parseEmailAddress } from '../util';
 import { buildMime } from './mime';
 
 export * from './sms';
@@ -263,10 +264,9 @@ function assertAuth(reply: SmtpReply): void {
 	});
 }
 
-/** Strips angle-bracket wrapping from an address so we can re-wrap it cleanly in the envelope. */
+/** Strips display name + angle brackets so the envelope re-wraps the bare address cleanly. */
 function bareAddress(addr: string): string {
-	const m = addr.match(/<([^>]*)>/);
-	return (m?.[1] ?? addr).trim();
+	return parseEmailAddress(addr).address;
 }
 
 /**

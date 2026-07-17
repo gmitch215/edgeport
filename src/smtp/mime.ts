@@ -11,6 +11,7 @@
  * @author Gregory Mitchell
  * @since 1.0.0
  */
+import { parseEmailAddress } from '../util';
 import type { Mail } from './index';
 
 const encoder = new TextEncoder();
@@ -28,10 +29,8 @@ function toList(value: string | string[] | undefined): string[] {
  * so two messages built in the same millisecond still differ.
  */
 function messageId(from: string): string {
-	const at = from.lastIndexOf('@');
-	// strip a possible trailing '>' from a "Name <addr>" form
-	const domainRaw = at >= 0 ? from.slice(at + 1) : 'localhost';
-	const domain = domainRaw.replace(/[>\s].*$/, '').trim() || 'localhost';
+	const domain =
+		(parseEmailAddress(from).domain ?? '').replace(/[>\s].*$/, '').trim() || 'localhost';
 	return `<${crypto.randomUUID()}@${domain}>`;
 }
 
