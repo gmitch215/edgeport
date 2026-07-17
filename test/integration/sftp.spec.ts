@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { connect } from '../../src/sftp/index';
+import { connect, getFile, putFile } from '../../src/sftp/index';
 import { connect as sshConnect } from '../../src/ssh/index';
 
 const base = { hostname: '127.0.0.1', port: 2222, username: 'tester', password: 'testpass' };
@@ -25,6 +25,22 @@ it('writes, stats, reads, lists, renames and removes a file', async () => {
 	const renamed = path + '.bak';
 	await sftp.rename(path, renamed);
 	await sftp.remove(renamed);
+});
+
+it('writeFile accepts a string (UTF-8 encoded)', async () => {
+	await using sftp = await connect(base);
+	const path = `/config/edgeport-sftp-str-${Math.floor(Date.now()).toString(36)}.txt`;
+	await sftp.writeFile(path, 'sftp string body\n'); // string, not bytes
+	expect(await sftp.readText(path)).toBe('sftp string body\n');
+	await sftp.remove(path);
+});
+
+it('one-shot putFile/getFile round-trip cleanly (no teardown rejection)', async () => {
+	const path = `/config/edgeport-oneshot-${Math.floor(Date.now()).toString(36)}.txt`;
+	await putFile({ ...base, path, data: 'one-shot body\n' }); // string via widened putFile
+	expect(new TextDecoder().decode(await getFile({ ...base, path }))).toBe('one-shot body\n');
+	await using sftp = await connect(base);
+	await sftp.remove(path);
 });
 
 it('reuses an existing ssh session for sftp', async () => {

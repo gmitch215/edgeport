@@ -39,7 +39,8 @@ class MockSftpServer {
 		this.channel = {
 			stdout: s2c.readable,
 			stderr: new ReadableStream<Uint8Array>(),
-			write: (data) => clientWriter.write(data),
+			write: (data) =>
+				clientWriter.write(typeof data === 'string' ? new TextEncoder().encode(data) : data),
 			eof: async () => {},
 			exit: Promise.resolve({ code: 0 } as never),
 			close: async () => {
@@ -297,6 +298,17 @@ describe('sftp text/json round-trips', () => {
 				script
 			]);
 			expect(new TextDecoder().decode(written)).toBe('hello world\n');
+		});
+	});
+
+	it('writeFile accepts a string and UTF-8 encodes it', async () => {
+		await withSftp(async (session, server) => {
+			const script = scriptWrite(server);
+			const [, written] = await Promise.all([
+				session.writeFile('/note.txt', 'plain string body'),
+				script
+			]);
+			expect(new TextDecoder().decode(written)).toBe('plain string body');
 		});
 	});
 

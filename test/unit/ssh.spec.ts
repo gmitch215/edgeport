@@ -696,11 +696,11 @@ function makeSession(canned: CannedExec | (() => CannedExec) = {}) {
 	session.exec = async (command: string) => {
 		execCommands.push(command);
 		const c = typeof canned === 'function' ? canned() : canned;
-		return {
-			stdout: enc.encode(c.stdout ?? ''),
-			stderr: enc.encode(c.stderr ?? ''),
-			code: c.code ?? 0
-		};
+		return sshIndex._makeExecResult(
+			enc.encode(c.stdout ?? ''),
+			enc.encode(c.stderr ?? ''),
+			c.code ?? 0
+		);
 	};
 	session.execStream = async (command: string) => {
 		streamCommands.push(command);
@@ -1085,5 +1085,48 @@ describe('ssh key fingerprint', () => {
 	it('always yields the SHA256: prefix with 43 unpadded base64 chars', async () => {
 		const fp = await sshIndex.fingerprint(new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
 		expect(fp).toMatch(/^SHA256:[A-Za-z0-9+/]{43}$/);
+	});
+});
+
+describe('ExecResult line helpers', () => {
+	const enc2 = new TextEncoder();
+	const result = (stdout: string) =>
+		sshIndex._makeExecResult(enc2.encode(stdout), new Uint8Array(), 0);
+
+	it('splits stdout into lines, dropping a single trailing newline', () => {
+		expect(result('a\nb\nc\n').lines()).toEqual(['a', 'b', 'c']);
+		expect(result('a\nb\nc').lines()).toEqual(['a', 'b', 'c']);
+		expect(result('').lines()).toEqual([]);
+		expect(result('only\r\nwith\r\ncrlf\r\n').lines()).toEqual(['only', 'with', 'crlf']);
+	});
+
+	it('firstLine/lastLine return the ends, or empty string on no output', () => {
+		const r = result('first\nmiddle\nlast\n');
+		expect(r.firstLine()).toBe('first');
+		expect(r.lastLine()).toBe('last');
+		expect(result('').firstLine()).toBe('');
+		expect(result('').lastLine()).toBe('');
+	});
+
+	it('lineAt is 0-based and supports negative indexes', () => {
+		const r = result('a\nb\nc\n');
+		expect(r.lineAt(0)).toBe('a');
+		expect(r.lineAt(2)).toBe('c');
+		expect(r.lineAt(-1)).toBe('c');
+		expect(r.lineAt(5)).toBeUndefined();
+	});
+
+	it('firstLines/lastLines take from each end and clamp', () => {
+		const r = result('1\n2\n3\n4\n5\n');
+		expect(r.firstLines(2)).toEqual(['1', '2']);
+		expect(r.lastLines(2)).toEqual(['4', '5']);
+		expect(r.firstLines(99)).toEqual(['1', '2', '3', '4', '5']);
+		expect(r.lastLines(0)).toEqual([]);
+	});
+
+	it('lines() returns a fresh array so caller mutation is isolated', () => {
+		const r = result('x\ny\n');
+		r.lines().push('z');
+		expect(r.lines()).toEqual(['x', 'y']);
 	});
 });

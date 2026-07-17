@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { connect as sftpConnect } from '../../src/sftp/index';
-import { connect, exec, sudo, sudoExec } from '../../src/ssh/index';
+import { collect, connect, exec, sudo, sudoExec } from '../../src/ssh/index';
 // encrypted PKCS#8 form of the same ed25519 key authorized in docker/compose.yml
 import encryptedKey from '../fixtures/ed25519_pkcs8_enc.pem?raw';
 
@@ -22,6 +22,22 @@ it('captures stderr and a non-zero exit code', async () => {
 	const r = await exec({ ...base, command: 'echo oops 1>&2; exit 3' });
 	expect(r.code).toBe(3);
 	expect(dec(r.stderr)).toContain('oops');
+});
+
+it('exec exposes decoded text + line helpers, and a channel accepts a string over write', async () => {
+	const r = await exec({ ...base, command: 'printf "alpha\\nbeta\\ngamma\\n"' });
+	expect(r.stdoutText.trim()).toBe('alpha\nbeta\ngamma');
+	expect(r.lines()).toEqual(['alpha', 'beta', 'gamma']);
+	expect(r.firstLine()).toBe('alpha');
+	expect(r.lastLine()).toBe('gamma');
+	expect(r.lineAt(-1)).toBe('gamma');
+
+	// a channel accepts a string over write (UTF-8 encoded); cat echoes our stdin back
+	await using ssh = await connect(base);
+	const ch = await ssh.execStream('cat');
+	await ch.write('piped-via-string\n');
+	await ch.eof();
+	expect(dec(await collect(ch.stdout))).toContain('piped-via-string');
 });
 
 // the assembly-verification gate: force each cipher path against the real server
