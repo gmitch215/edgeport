@@ -23,7 +23,7 @@ message with <a href="#verifyserverfinal" class="tsd-kind-method">ScramClient.ve
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">ScramClient</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#clientfirst">clientFirst</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#clientfirstbare">clientFirstBare</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#clientnonce">clientNonce</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#mechanism">mechanism</a><span class="tsd-signature-symbol">:</span> <a href="../types/xmpp.ScramMechanism.html" class="tsd-signature-type tsd-kind-type-alias">ScramMechanism</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#handleserverfirst-1">handleServerFirst</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">serverFirst</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#verifyserverfinal-1">verifyServerFinal</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">serverFinal</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/xmpp/sasl.ts#L51">src/xmpp/sasl.ts:51</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/xmpp/sasl.ts#L51">src/xmpp/sasl.ts:51</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -50,28 +50,28 @@ message with <a href="#verifyserverfinal" class="tsd-kind-method">ScramClient.ve
 <div class="tsd-comment tsd-typography"><p>The client-first message (<code>n,,n=user,r=nonce</code>) sent in <code>&lt;auth&gt;</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/xmpp/sasl.ts#L55">src/xmpp/sasl.ts:55</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/xmpp/sasl.ts#L55">src/xmpp/sasl.ts:55</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="clientfirstbare"><code class="tsd-tag">Readonly</code><span>client<wbr/>First<wbr/>Bare</span><a href="#clientfirstbare" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">clientFirstBare</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The client-first-bare portion (<code>n=user,r=nonce</code>), used to build the auth message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/xmpp/sasl.ts#L57">src/xmpp/sasl.ts:57</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/xmpp/sasl.ts#L57">src/xmpp/sasl.ts:57</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="clientnonce"><code class="tsd-tag">Readonly</code><span>client<wbr/>Nonce</span><a href="#clientnonce" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">clientNonce</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The client nonce this exchange was seeded with.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/xmpp/sasl.ts#L59">src/xmpp/sasl.ts:59</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/xmpp/sasl.ts#L59">src/xmpp/sasl.ts:59</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="mechanism"><code class="tsd-tag">Readonly</code><span>mechanism</span><a href="#mechanism" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">mechanism</span><span class="tsd-signature-symbol">:</span> <a href="../types/xmpp.ScramMechanism.html" class="tsd-signature-type tsd-kind-type-alias">ScramMechanism</a></div>
 <div class="tsd-comment tsd-typography"><p>The negotiated mechanism.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/xmpp/sasl.ts#L53">src/xmpp/sasl.ts:53</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/xmpp/sasl.ts#L53">src/xmpp/sasl.ts:53</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -97,7 +97,7 @@ message with <a href="#verifyserverfinal" class="tsd-kind-method">ScramClient.ve
 message is malformed.</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/xmpp/sasl.ts#L68">src/xmpp/sasl.ts:68</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/xmpp/sasl.ts#L68">src/xmpp/sasl.ts:68</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="verifyserverfinal"><span>verify<wbr/>Server<wbr/>Final</span><a href="#verifyserverfinal" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -118,7 +118,7 @@ message is malformed.</p>
 <h4 class="tsd-anchor-link" id="throws-1">Throws<a href="#throws-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the server reported an error or its signature does not match.</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/xmpp/sasl.ts#L75">src/xmpp/sasl.ts:75</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/xmpp/sasl.ts#L75">src/xmpp/sasl.ts:75</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

@@ -22,7 +22,7 @@
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">SyslogConnectOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#appname">appName</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#framing">framing</a><span class="tsd-signature-symbol">?:</span> <a href="../types/syslog.Framing.html" class="tsd-signature-type tsd-kind-type-alias">Framing</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#hostname">hostname</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#hostnamefield">hostnameField</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#port">port</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#procid">procId</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#timeoutms">timeoutMs</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#tls">tls</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">&quot;off&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;starttls&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;implicit&quot;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L135">src/syslog/index.ts:135</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L135">src/syslog/index.ts:135</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -48,49 +48,49 @@
 <div class="tsd-comment tsd-typography"><p>Default APP-NAME field for every message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L150">src/syslog/index.ts:150</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L150">src/syslog/index.ts:150</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="framing"><code class="tsd-tag">Optional</code><span>framing</span><a href="#framing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">framing</span><span class="tsd-signature-symbol">?:</span> <a href="../types/syslog.Framing.html" class="tsd-signature-type tsd-kind-type-alias">Framing</a></div>
 <div class="tsd-comment tsd-typography"><p>Wire framing; defaults to <code>'octet-counting'</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L148">src/syslog/index.ts:148</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L148">src/syslog/index.ts:148</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="hostname"><span>hostname</span><a href="#hostname" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hostname</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Collector hostname (also used for TLS certificate validation).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L137">src/syslog/index.ts:137</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L137">src/syslog/index.ts:137</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="hostnamefield"><code class="tsd-tag">Optional</code><span>hostname<wbr/>Field</span><a href="#hostnamefield" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">hostnameField</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Default HOSTNAME field for every message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L152">src/syslog/index.ts:152</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L152">src/syslog/index.ts:152</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="port"><code class="tsd-tag">Optional</code><span>port</span><a href="#port" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">port</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>TCP port; defaults to 514.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L139">src/syslog/index.ts:139</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L139">src/syslog/index.ts:139</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="procid"><code class="tsd-tag">Optional</code><span>proc<wbr/>Id</span><a href="#procid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">procId</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Default PROCID field for every message.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L154">src/syslog/index.ts:154</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L154">src/syslog/index.ts:154</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="timeoutms"><code class="tsd-tag">Optional</code><span>timeout<wbr/>Ms</span><a href="#timeoutms" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">timeoutMs</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Connect deadline in milliseconds.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L156">src/syslog/index.ts:156</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L156">src/syslog/index.ts:156</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="tls"><code class="tsd-tag">Optional</code><span>tls</span><a href="#tls" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">tls</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">&quot;off&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;starttls&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;implicit&quot;</span></div>
@@ -102,7 +102,7 @@
 </ul>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/syslog/index.ts#L146">src/syslog/index.ts:146</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/syslog/index.ts#L146">src/syslog/index.ts:146</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

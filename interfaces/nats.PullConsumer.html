@@ -22,7 +22,7 @@ cursor, so only un-acked messages are redelivered (see <a href="nats.JsMessage.h
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">PullConsumer</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#durable">durable</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#stream">stream</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#fetch-1">fetch</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">batch</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">opts</span><span class="tsd-signature-symbol">?:</span> <a href="nats.FetchOptions.html" class="tsd-signature-type tsd-kind-interface">FetchOptions</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="nats.JsMessage.html" class="tsd-signature-type tsd-kind-interface">JsMessage</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/jetstream.ts#L176">src/nats/jetstream.ts:176</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/nats/jetstream.ts#L176">src/nats/jetstream.ts:176</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -46,14 +46,14 @@ cursor, so only un-acked messages are redelivered (see <a href="nats.JsMessage.h
 <div class="tsd-comment tsd-typography"><p>The durable name that identifies this consumer across connections.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/jetstream.ts#L180">src/nats/jetstream.ts:180</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/nats/jetstream.ts#L180">src/nats/jetstream.ts:180</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stream"><code class="tsd-tag">Readonly</code><span>stream</span><a href="#stream" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">stream</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The stream this consumer reads from.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/jetstream.ts#L178">src/nats/jetstream.ts:178</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/nats/jetstream.ts#L178">src/nats/jetstream.ts:178</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -82,7 +82,7 @@ cursor, so only un-acked messages are redelivered (see <a href="nats.JsMessage.h
 <h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the connection is closed.</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/81445450a4098b2eef286190eacb6bf504548dc5/src/nats/jetstream.ts#L190">src/nats/jetstream.ts:190</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/a7f119876f2af5cf4778ef0761267230c2efa023/src/nats/jetstream.ts#L190">src/nats/jetstream.ts:190</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
