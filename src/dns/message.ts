@@ -1171,6 +1171,20 @@ export function encodeRdata(type: RecordType | number, data: RData): Uint8Array 
 				fromHex(t.cert)
 			]);
 		}
+		case RecordType.RRSIG: {
+			const s = data as RrsigRecord;
+			// signer name is uncompressed per RFC 4034; the signature is the trailing bytes
+			return concat([
+				u16(s.typeCovered),
+				new Uint8Array([s.algorithm & 0xff, s.labels & 0xff]),
+				u32(s.originalTtl),
+				u32(s.expiration),
+				u32(s.inception),
+				u16(s.keyTag),
+				encodeName(s.signerName),
+				fromBase64(s.signature)
+			]);
+		}
 		case RecordType.SVCB:
 		case RecordType.HTTPS: {
 			const s = data as SvcbRecord;
