@@ -55,7 +55,8 @@ bun run prettier                               # format
 1. **Unit** (`test/unit/`) - mocked sockets, parsers, FSMs. Uses `test/mock-socket.ts`.
 2. **KAT** (`test/kat/`) - byte-exact crypto vectors (RFC 7748/8032/4231/8439). No mocks.
 3. **Integration** (`test/integration/`, gated by `INTEGRATION=1`) - real servers via
-   `docker/compose.yml` (digest-pinned), run under `workerd` via
+   `docker/compose.yml` (images pinned as `tag@sha256:digest` - readable version + reproducible
+   digest; docker pulls by digest, the tag is for humans/Renovate), run under `workerd` via
    `@cloudflare/vitest-pool-workers`. Integration runs serially (shared servers).
 
 Docker test creds/ports: SSH/SFTP `tester`/`testpass` on 2222 (OpenSSH) + 2223 (Dropbear);
