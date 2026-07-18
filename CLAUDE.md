@@ -59,6 +59,17 @@ bun run prettier                               # format
    digest; docker pulls by digest, the tag is for humans/Renovate), run under `workerd` via
    `@cloudflare/vitest-pool-workers`. Integration runs serially (shared servers).
 
+**Maximize coverage when writing tests (applies to the whole project).** Coverage is measured on
+the gate run (unit + KAT, `istanbul` over `src/**`); integration does not count toward it. Take the
+free wins: every wrapper/one-shot that just delegates should still be _called_ so its line is
+covered, and every branch that throws on invalid input (`ProtocolError`/`AuthError`/...) should have
+a test that trips it - a thin one-liner per branch. Still write the nitty-gritty edge cases and the
+real between-methods flows in integration/e2e where they belong, but do not leave a delegating
+wrapper, a niche codec type, or an error branch uncovered just because it looks trivial. When a
+one-shot or session needs a live socket, add a small `@internal` `_xFromSocket` / `_xFromSession`
+seam (the established pattern: `_sessionFromSocket`, `_imapSessionFromSocket`, `_connectOverSocket`,
+`_msrpSessionFromSocket`, `_fetchRecentFromSession`) so the logic is drivable over a mock socket.
+
 Docker test creds/ports: SSH/SFTP `tester`/`testpass` on 2222 (OpenSSH) + 2223 (Dropbear);
 mail `tester`/`testpass` (`tester@localhost`) on greenmail 3025/3143/3110; ws-echo 8081;
 NATS `tester`/`testpass` 4222; FTP `tester`/`testpass` 21 (passive 40000-40009); OpenLDAP
