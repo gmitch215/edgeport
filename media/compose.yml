@@ -1,6 +1,6 @@
 services:
   openssh:
-    image: linuxserver/openssh-server@sha256:204b64775f7dfb17761ed0644df348ba3cd811628334cc723aa69d61f4db893d
+    image: linuxserver/openssh-server:10.3_p1-r0-ls231@sha256:204b64775f7dfb17761ed0644df348ba3cd811628334cc723aa69d61f4db893d
     environment:
       PUID: '1000'
       PGID: '1000'
@@ -16,7 +16,7 @@ services:
       - '127.0.0.1:2222:2222'
 
   dropbear:
-    image: alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+    image: alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
     command:
       - sh
       - -c
@@ -30,7 +30,7 @@ services:
       - '127.0.0.1:2223:2223'
 
   greenmail:
-    image: greenmail/standalone@sha256:53cf220d34e4f2ca9e216f9ae5d9051624780ee510740370b8026915094b87fa
+    image: greenmail/standalone:2.1.11@sha256:53cf220d34e4f2ca9e216f9ae5d9051624780ee510740370b8026915094b87fa
     environment:
       GREENMAIL_OPTS: '-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=tester:testpass@localhost -Dgreenmail.verbose'
     ports:
@@ -43,14 +43,14 @@ services:
       - '127.0.0.1:8080:8080' # rest api (readiness)
 
   ws-echo:
-    image: jmalloc/echo-server@sha256:86f2c45aa7e7ebe1be30b21f8cfff25a7ed6e3b059751822d4b35bf244a688d5
+    image: jmalloc/echo-server:0.3.6@sha256:86f2c45aa7e7ebe1be30b21f8cfff25a7ed6e3b059751822d4b35bf244a688d5
     environment:
       PORT: '8081'
     ports:
       - '127.0.0.1:8081:8081'
 
   nats:
-    image: nats@sha256:67ac7866d010e8d83302dd30332eeae1a2b7a8ee051155e2eb5a5485b720cd4b
+    image: nats:2.14.3@sha256:67ac7866d010e8d83302dd30332eeae1a2b7a8ee051155e2eb5a5485b720cd4b
     # -js enables JetStream so recovery.spec can verify durable message continuity
     command:
       ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0', '-js', '-sd', '/tmp/js']
@@ -58,7 +58,7 @@ services:
       - '127.0.0.1:4222:4222'
 
   ftp:
-    image: stilliard/pure-ftpd@sha256:41c9aaded1fd06053c500d28415613ca7605ecc39a3e1c2ec4f0a279bd78f253
+    image: stilliard/pure-ftpd:trixie-1.0.50@sha256:41c9aaded1fd06053c500d28415613ca7605ecc39a3e1c2ec4f0a279bd78f253
     environment:
       PUBLICHOST: '127.0.0.1'
       FTP_USER_NAME: 'tester'
@@ -75,7 +75,7 @@ services:
       - '127.0.0.1:40000-40009:40000-40009'
 
   openldap:
-    image: osixia/openldap@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
+    image: osixia/openldap:1.5.0@sha256:18742e9c449c9c1afe129d3f2f3ee15fb34cc43e5f940a20f3399728f41d7c28
     environment:
       LDAP_ORGANISATION: 'edgeport'
       LDAP_DOMAIN: 'example.org'
@@ -85,7 +85,7 @@ services:
       - '127.0.0.1:636:636'
 
   ldap-seed:
-    image: alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+    image: alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
     depends_on:
       - openldap
     volumes:
@@ -98,14 +98,14 @@ services:
     restart: 'no'
 
   mqtt:
-    image: eclipse-mosquitto@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+    image: eclipse-mosquitto:2.1.2-alpine@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     ports:
       - '127.0.0.1:1883:1883'
 
   stomp:
-    image: rmohr/activemq@sha256:b5669f141ac5c455b1010b90d348fe78289bba7e2db5659484d99736b696593c
+    image: rmohr/activemq:5.15.9@sha256:b5669f141ac5c455b1010b90d348fe78289bba7e2db5659484d99736b696593c
     healthcheck:
       test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/8161']
       interval: 3s
@@ -115,7 +115,7 @@ services:
       - '127.0.0.1:61613:61613'
 
   syslog:
-    image: alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+    image: alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
     command:
       - sh
       - -c
@@ -130,7 +130,7 @@ services:
       - '127.0.0.1:5515:5515' # readback
 
   smscsim:
-    image: ukarim/smscsim@sha256:673ef3b2c62e3aa34be0528a9034b53e04c4fc2fbf4e65e03225717de8890707
+    image: ukarim/smscsim:latest@sha256:673ef3b2c62e3aa34be0528a9034b53e04c4fc2fbf4e65e03225717de8890707
     ports:
       - '127.0.0.1:2775:2775' # smpp
       - '127.0.0.1:12775:12775' # http MO injection
@@ -151,7 +151,7 @@ services:
       - '127.0.0.1:2855:2855/tcp' # msrp relay
 
   dns:
-    image: coredns/coredns@sha256:900f9c109f7a33545d3c811516e8376df9019147b750f5ce3e254468769176ea
+    image: coredns/coredns:1.14.6@sha256:900f9c109f7a33545d3c811516e8376df9019147b750f5ce3e254468769176ea
     command: ['-conf', '/Corefile']
     volumes:
       - ./dns/Corefile:/Corefile:ro
@@ -162,7 +162,10 @@ services:
       - '127.0.0.1:5354:53/udp'
 
   xmpp:
-    image: ghcr.io/processone/ejabberd@sha256:68482e33ff11934e73ef2881cf455ccefc1e03b31203f3ab651f4b2b1152b4a8
+    image: ghcr.io/processone/ejabberd:26.04@sha256:68482e33ff11934e73ef2881cf455ccefc1e03b31203f3ab651f4b2b1152b4a8
+    # ejabberd's BEAM VM can crash-exit (code 1) during the full-stack startup crunch; let docker
+    # restart it so a transient boot flake self-recovers instead of failing `up --wait` (CI #130)
+    restart: on-failure
     environment:
       CTL_ON_CREATE: 'register tester localhost testpass ; register tester2 localhost testpass'
     volumes:
@@ -176,7 +179,7 @@ services:
       - '127.0.0.1:5222:5222' # xmpp c2s (plaintext)
 
   irc:
-    image: ghcr.io/ergochat/ergo@sha256:6a0eff2135cd4ca0cb2f6c464bb905e3ce61a7fc73b7095f379b0b55fb9de201
+    image: ghcr.io/ergochat/ergo:stable@sha256:0ccde041f89f4b526a2d445b25078de80d3fa43fd8d3208deb242ae6b2b81d61
     volumes:
       - ./irc/ircd.yaml:/ircd/ircd.yaml:ro
     healthcheck:
