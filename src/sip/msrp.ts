@@ -485,6 +485,21 @@ export async function connectMsrp(opts: MsrpConnectOptions): Promise<MsrpSession
 		tls: tls ? 'on' : 'off',
 		connectTimeoutMs: opts.timeoutMs
 	});
+	return _msrpSessionFromSocket(socket, opts);
+}
+
+/**
+ * Wraps an already-connected core socket in an MSRP session and starts its read pump.
+ *
+ * Public {@link connectMsrp} dials the peer's MSRP path then calls this; unit tests call it
+ * directly with a mock socket to drive the session (send/chunking/ack/receive) without a network.
+ *
+ * @param socket - A connected core socket (already TLS when the path is `msrps://`).
+ * @param opts - The session options.
+ * @returns The live MSRP session.
+ * @internal
+ */
+export function _msrpSessionFromSocket(socket: CoreSocket, opts: MsrpConnectOptions): MsrpSession {
 	const session = new MsrpSessionImpl(socket, opts);
 	session.start();
 	return session;
