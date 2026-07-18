@@ -12,7 +12,14 @@ import {
 	type DirectionKeys
 } from '../../src/crypto';
 import { buildPaddedBody, NoneCipher, unwrapBody } from '../../src/crypto/packet';
-import { buildKexInit, negotiate, nistp256, parseKexInit } from '../../src/kex';
+import {
+	buildKexInit,
+	createKex,
+	curve25519,
+	negotiate,
+	nistp256,
+	parseKexInit
+} from '../../src/kex';
 import { sudo, sudoExec } from '../../src/ssh';
 import { SshConnection, type ChannelExit } from '../../src/ssh/connection';
 import * as sshIndex from '../../src/ssh/index';
@@ -325,6 +332,31 @@ describe('nistp256 kex', () => {
 	it('rejects an invalid peer point', async () => {
 		const a = await nistp256.generateKeyPair();
 		await expect(nistp256.deriveShared(a.privateKey, new Uint8Array(65))).rejects.toBeTruthy();
+	});
+});
+
+describe('createKex method dispatch', () => {
+	it('creates a curve25519-sha256 method that derives a shared secret', async () => {
+		const method = await createKex('curve25519-sha256');
+		expect(method.hash).toBe('SHA-256');
+		expect(method.publicKey).toHaveLength(32);
+		const peer = await curve25519.generateKeyPair();
+		const secret = await method.deriveSecret(peer.publicKey);
+		expect(secret.length).toBeGreaterThan(0);
+	});
+
+	it('creates an ecdh-sha2-nistp256 method that derives a shared secret', async () => {
+		const method = await createKex('ecdh-sha2-nistp256');
+		expect(method.hash).toBe('SHA-256');
+		// an uncompressed P-256 point is 65 octets (0x04 || X || Y)
+		expect(method.publicKey).toHaveLength(65);
+		const peer = await nistp256.generateKeyPair();
+		const secret = await method.deriveSecret(peer.publicKey);
+		expect(secret.length).toBeGreaterThan(0);
+	});
+
+	it('rejects an unsupported kex name with ProtocolError', async () => {
+		await expect(createKex('diffie-hellman-group1-sha1')).rejects.toBeInstanceOf(ProtocolError);
 	});
 });
 
