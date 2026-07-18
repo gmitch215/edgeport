@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { AuthError, ProtocolError } from '../../src/core/errors';
 import {
 	_connectOverSocket,
+	_connectOverTransport,
+	_wsTransport,
 	type MqttMessage,
 	type MqttScheduler,
 	type MqttSession
@@ -19,6 +21,7 @@ import {
 	PacketType,
 	type DecodedPacket
 } from '../../src/mqtt/packet';
+import type { WsConnection, WsMessage } from '../../src/ws';
 import { mockConnection, type MockServerEnd } from '../mock-socket';
 
 const enc = new TextEncoder();
@@ -458,5 +461,187 @@ describe('mqtt subscribeJson', () => {
 		expect(value).toEqual({ topic: 'sensors/3', value: { id: 3 } });
 
 		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+});
+
+// broker-side encoders for the id-only ack packets
+function pubrec(id: number): Uint8Array {
+	return new Uint8Array([0x50, 0x02, (id >> 8) & 0xff, id & 0xff]);
+}
+function pubrel(id: number): Uint8Array {
+	return new Uint8Array([0x62, 0x02, (id >> 8) & 0xff, id & 0xff]);
+}
+function pubcomp(id: number): Uint8Array {
+	return new Uint8Array([0x70, 0x02, (id >> 8) & 0xff, id & 0xff]);
+}
+
+describe('mqtt qos2 publish (sender handshake)', () => {
+	it('sends PUBLISH, releases on PUBREC, and resolves on PUBCOMP', async () => {
+		const { session, server } = await connected();
+		const pubScript = (async () => {
+			const pub = await readPacketFromServer(server);
+			if (pub.type !== PacketType.PUBLISH) throw new Error('wrong type');
+			expect(pub.qos).toBe(2);
+			const id = pub.packetId!;
+			await server.write(pubrec(id));
+			const rel = await readPacketFromServer(server);
+			expect(rel.type).toBe(PacketType.PUBREL);
+			await server.write(pubcomp(id));
+		})();
+		await Promise.all([session.publish('a/b', 'data', { qos: 2 }), pubScript]);
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+});
+
+describe('mqtt qos2 delivery (receiver handshake)', () => {
+	it('answers an inbound qos2 PUBLISH with PUBREC then PUBCOMP', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribe('s/#', { qos: 2 });
+		const subPkt = await readPacketFromServer(server);
+		if (subPkt.type !== PacketType.SUBSCRIBE) throw new Error('wrong type');
+		await server.write(suback(subPkt.packetId, [2]));
+
+		await server.write(
+			encodePublish({ topic: 's/x', payload: enc.encode('q2'), qos: 2, packetId: 77 })
+		);
+		const rec = await readPacketFromServer(server);
+		expect(rec.type).toBe(PacketType.PUBREC);
+		await server.write(pubrel(77));
+		const comp = await readPacketFromServer(server);
+		expect(comp.type).toBe(PacketType.PUBCOMP);
+
+		const first = await sub[Symbol.asyncIterator]().next();
+		expect(first.value.topic).toBe('s/x');
+		expect(first.value.qos).toBe(2);
+		expect(first.value.text()).toBe('q2');
+
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+});
+
+describe('mqtt broker-initiated frames', () => {
+	it('ignores a PINGRESP and keeps working', async () => {
+		const { session, server } = await connected();
+		await server.write(new Uint8Array([0xd0, 0x00])); // PINGRESP
+		const pubScript = (async () => {
+			const pkt = await readPacketFromServer(server);
+			expect(pkt.type).toBe(PacketType.PUBLISH);
+		})();
+		await Promise.all([session.publish('a/b', 'x'), pubScript]);
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+
+	it('ends subscriptions on a broker DISCONNECT', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribe('t/#', { qos: 0 });
+		const subPkt = await readPacketFromServer(server);
+		if (subPkt.type !== PacketType.SUBSCRIBE) throw new Error('wrong type');
+		await server.write(suback(subPkt.packetId, [0]));
+
+		await server.write(new Uint8Array([0xe0, 0x00])); // broker DISCONNECT
+		const done = await sub[Symbol.asyncIterator]().next();
+		expect(done.done).toBe(true);
+		await Promise.all([session.close(), readPacketFromServer(server)]);
+	});
+
+	it('errors the pump on an unexpected packet type from the broker', async () => {
+		const { session, server } = await connected();
+		const sub = session.subscribe('t', { qos: 0 });
+		const subPkt = await readPacketFromServer(server);
+		if (subPkt.type !== PacketType.SUBSCRIBE) throw new Error('wrong type');
+		await server.write(suback(subPkt.packetId, [0]));
+
+		// a PINGREQ is only ever client->broker; receiving one is a protocol violation
+		await server.write(new Uint8Array([0xc0, 0x00]));
+		const done = await sub[Symbol.asyncIterator]().next();
+		expect(done.done).toBe(true);
+		await expect(session.publish('a/b', 'x')).rejects.toBeInstanceOf(ProtocolError);
+	});
+});
+
+// builds a WsMessage of either kind (the transport only reads `type` / `data`)
+function binFrame(data: Uint8Array): WsMessage {
+	return {
+		type: 'binary',
+		data,
+		text: () => dec.decode(data),
+		json: () => JSON.parse(dec.decode(data))
+	};
+}
+function textFrame(s: string): WsMessage {
+	return { type: 'text', data: s, text: () => s, json: () => JSON.parse(s) };
+}
+
+describe('mqtt over websocket transport', () => {
+	// a controllable fake WsConnection that yields queued frames and captures sent bytes
+	function fakeWs(): {
+		ws: WsConnection;
+		sent: Uint8Array[];
+		push: (m: WsMessage) => void;
+		closedFlag: () => boolean;
+	} {
+		const queue: WsMessage[] = [];
+		const sent: Uint8Array[] = [];
+		let closed = false;
+		let waiter: ((r: IteratorResult<WsMessage>) => void) | null = null;
+		const push = (m: WsMessage): void => {
+			if (waiter) {
+				waiter({ value: m, done: false });
+				waiter = null;
+			} else queue.push(m);
+		};
+		const ws = {
+			send: (d: string | Uint8Array) => sent.push(typeof d === 'string' ? enc.encode(d) : d),
+			sendJson: () => {},
+			close: () => {
+				closed = true;
+				if (waiter) {
+					waiter({ value: undefined, done: true });
+					waiter = null;
+				}
+			},
+			closed: Promise.resolve({ code: 1000, reason: '' }),
+			[Symbol.asyncIterator](): AsyncIterator<WsMessage> {
+				return {
+					next: () => {
+						const m = queue.shift();
+						if (m) return Promise.resolve({ value: m, done: false });
+						if (closed) return Promise.resolve({ value: undefined, done: true });
+						return new Promise((resolve) => (waiter = resolve));
+					}
+				};
+			},
+			[Symbol.asyncDispose]: () => Promise.resolve()
+		} as unknown as WsConnection;
+		return { ws, sent, push, closedFlag: () => closed };
+	}
+
+	it('runs the CONNECT/CONNACK handshake over binary frames (ignoring text frames)', async () => {
+		const { ws, sent, push } = fakeWs();
+		const transport = _wsTransport(ws);
+		const sessionP = _connectOverTransport(transport, { hostname: '', keepAliveSeconds: 0 });
+		// let the CONNECT get written before feeding the reply
+		await Promise.resolve();
+		push(textFrame('ignored')); // non-binary frames are skipped
+		push(binFrame(connack(0)));
+		const session = await sessionP;
+
+		// the client wrote a CONNECT as the first binary frame
+		expect(sent.length).toBeGreaterThan(0);
+		expect(decodePacket(sent[0]!).type).toBe(PacketType.CONNECT);
+
+		await session.close();
+	});
+
+	it('reassembles a packet split across two binary frames', async () => {
+		const { ws, push } = fakeWs();
+		const transport = _wsTransport(ws);
+		const sessionP = _connectOverTransport(transport, { hostname: '', keepAliveSeconds: 0 });
+		await Promise.resolve();
+		const ca = connack(0);
+		push(binFrame(ca.subarray(0, 1))); // fixed header only
+		push(binFrame(ca.subarray(1))); // remaining bytes
+		const session = await sessionP;
+		await session.close();
 	});
 });
