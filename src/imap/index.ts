@@ -212,10 +212,28 @@ export async function fetchRecent(
 	opts: ImapConnectOptions & { mailbox?: string; count: number }
 ): Promise<ImapMessage[]> {
 	await using session = await connect(opts);
+	// await before returning so the session disposes AFTER the fetch completes, not mid-operation
+	return await _fetchRecentFromSession(session, opts);
+}
+
+/**
+ * Selects the mailbox, takes the highest-numbered `count` UIDs, and fetches their flags/body/size.
+ *
+ * The post-connect core of {@link fetchRecent}, split out so it can be unit-tested against a mock
+ * session without opening a real socket. {@link fetchRecent} dials the transport and calls this.
+ *
+ * @param session - A ready {@link ImapSession}.
+ * @param opts - The mailbox (default `INBOX`) and the number of recent messages to fetch.
+ * @returns Up to `count` recent messages, oldest first.
+ * @internal
+ */
+export async function _fetchRecentFromSession(
+	session: ImapSession,
+	opts: { mailbox?: string; count: number }
+): Promise<ImapMessage[]> {
 	await session.select(opts.mailbox ?? 'INBOX');
 	const uids = await session.search({ all: true });
 	const recent = uids.slice(Math.max(0, uids.length - opts.count));
-	// await before returning so the session disposes AFTER the fetch completes, not mid-operation
 	return await session.fetch(recent, { flags: true, body: true, size: true });
 }
 
