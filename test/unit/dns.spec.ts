@@ -2,26 +2,38 @@ import { describe, expect, it } from 'vitest';
 import { ProtocolError } from '../../src/core/errors';
 import {
 	_connectOverSocket,
+	decodeFlags,
 	decodeMessage,
 	decodeName,
 	decodeOpt,
+	encodeFlags,
 	encodeMessage,
 	encodeName,
 	encodeOptRecord,
+	encodeRdata,
 	formatIpv6,
 	parseIpv4,
 	parseIpv6,
 	record,
 	RecordClass,
 	RecordType,
+	recordTypeName,
+	recordTypeNumber,
 	ResponseCode,
 	reverseName,
 	type CaaRecord,
+	type DnskeyRecord,
 	type DnsMessage,
+	type DsRecord,
 	type MxRecord,
+	type NaptrRecord,
 	type ResourceRecord,
+	type RrsigRecord,
 	type SoaRecord,
-	type SrvRecord
+	type SrvRecord,
+	type SshfpRecord,
+	type SvcbRecord,
+	type TlsaRecord
 } from '../../src/dns';
 import { fromHex } from '../../src/util';
 import { mockConnection, type MockServerEnd } from '../mock-socket';
@@ -550,5 +562,194 @@ describe('dns raw (level 3) query', () => {
 		expect(res.rcode).toBe(ResponseCode.NXDOMAIN);
 		expect(res.answers).toEqual([]);
 		await session.close();
+	});
+});
+
+// encodes a one-record message and decodes it back, returning the round-tripped record
+function roundtripRecord(rr: ResourceRecord): ResourceRecord {
+	const msg: DnsMessage = {
+		id: 1,
+		flags: {
+			qr: true,
+			opcode: 0,
+			aa: false,
+			tc: false,
+			rd: false,
+			ra: false,
+			z: false,
+			ad: false,
+			cd: false,
+			rcode: 0
+		},
+		question: [],
+		answer: [rr],
+		authority: [],
+		additional: []
+	};
+	return decodeMessage(encodeMessage(msg)).answer[0]!;
+}
+
+describe('dns niche rdata roundtrips', () => {
+	it('NAPTR', () => {
+		const naptr: NaptrRecord = {
+			order: 100,
+			preference: 10,
+			flags: 'S',
+			service: 'SIP+D2U',
+			regexp: '',
+			replacement: '_sip._udp.z.test'
+		};
+		expect(roundtripRecord(record('z.test', RecordType.NAPTR, 60, naptr)).data).toEqual(naptr);
+	});
+
+	it('SSHFP', () => {
+		const sshfp: SshfpRecord = { algorithm: 4, fpType: 2, fingerprint: 'abcdef0123456789' };
+		expect(roundtripRecord(record('h.z.test', RecordType.SSHFP, 60, sshfp)).data).toEqual(sshfp);
+	});
+
+	it('DS', () => {
+		const ds: DsRecord = { keyTag: 12345, algorithm: 8, digestType: 2, digest: 'aabbccddeeff' };
+		expect(roundtripRecord(record('z.test', RecordType.DS, 60, ds)).data).toEqual(ds);
+	});
+
+	it('DNSKEY', () => {
+		const dnskey: DnskeyRecord = { flags: 257, protocol: 3, algorithm: 8, publicKey: 'AQIDBA==' };
+		expect(roundtripRecord(record('z.test', RecordType.DNSKEY, 60, dnskey)).data).toEqual(dnskey);
+	});
+
+	it('TLSA', () => {
+		const tlsa: TlsaRecord = { usage: 3, selector: 1, matchingType: 1, cert: 'aabbccdd' };
+		expect(roundtripRecord(record('_443._tcp.z.test', RecordType.TLSA, 60, tlsa)).data).toEqual(
+			tlsa
+		);
+	});
+
+	it('RRSIG', () => {
+		const rrsig: RrsigRecord = {
+			typeCovered: RecordType.A,
+			algorithm: 8,
+			labels: 2,
+			originalTtl: 3600,
+			expiration: 1700000000,
+			inception: 1699000000,
+			keyTag: 12345,
+			signerName: 'z.test',
+			signature: 'AQIDBA=='
+		};
+		expect(roundtripRecord(record('z.test', RecordType.RRSIG, 60, rrsig)).data).toEqual(rrsig);
+	});
+
+	it('SVCB / HTTPS', () => {
+		const svcb: SvcbRecord = {
+			priority: 1,
+			target: 'z.test',
+			params: [{ key: 1, value: new Uint8Array([0x02, 0x68, 0x32]) }]
+		};
+		const back = roundtripRecord(record('z.test', RecordType.HTTPS, 60, svcb)).data as SvcbRecord;
+		expect(back.priority).toBe(1);
+		expect(back.target).toBe('z.test');
+		expect(back.params[0]!.key).toBe(1);
+		expect([...back.params[0]!.value]).toEqual([0x02, 0x68, 0x32]);
+	});
+
+	it('keeps an un-decoded TYPE as raw rdata bytes', () => {
+		// HINFO (13) is not decoded; the raw rdata round-trips unchanged
+		const rr = roundtripRecord(record('z.test', 13, 60, new Uint8Array([0x01, 0x61, 0x01, 0x62])));
+		expect(rr.data).toBeInstanceOf(Uint8Array);
+		expect([...(rr.data as Uint8Array)]).toEqual([0x01, 0x61, 0x01, 0x62]);
+	});
+});
+
+describe('dns type-name helpers', () => {
+	it('maps a numeric TYPE to its name, or the number for an unknown TYPE', () => {
+		expect(recordTypeName(RecordType.AAAA)).toBe('AAAA');
+		expect(recordTypeName(9999)).toBe('9999');
+	});
+
+	it('resolves a TYPE name or number to its numeric value', () => {
+		expect(recordTypeNumber('AAAA')).toBe(28);
+		expect(recordTypeNumber(RecordType.MX)).toBe(15);
+	});
+
+	it('round-trips flags through encode/decode', () => {
+		const flags = {
+			qr: true,
+			opcode: 0,
+			aa: true,
+			tc: false,
+			rd: true,
+			ra: true,
+			z: false,
+			ad: false,
+			cd: false,
+			rcode: ResponseCode.NOERROR
+		};
+		expect(decodeFlags(encodeFlags(flags))).toEqual(flags);
+	});
+});
+
+describe('dns codec error branches', () => {
+	it('rejects a name with a reserved label length form', () => {
+		expect(() => decodeName(new Uint8Array([0x80, 0x00]), 0)).toThrow(ProtocolError);
+	});
+
+	it('rejects a truncated compression pointer', () => {
+		expect(() => decodeName(new Uint8Array([0xc0]), 0)).toThrow(ProtocolError);
+	});
+
+	it('rejects a label that runs past the end of the message', () => {
+		expect(() => decodeName(new Uint8Array([0x03, 0x61]), 0)).toThrow(ProtocolError);
+	});
+
+	it('rejects a name with no terminating root label', () => {
+		expect(() => decodeName(new Uint8Array([0x01, 0x61, 0x01, 0x62]), 0)).toThrow(ProtocolError);
+	});
+
+	it('rejects a non-digit IPv4 octet', () => {
+		expect(() => parseIpv4('1.2.3.x')).toThrow(ProtocolError);
+	});
+
+	it('rejects malformed IPv6 addresses', () => {
+		expect(() => parseIpv6('de::ad::beef')).toThrow(ProtocolError);
+		expect(() => parseIpv6('gg::1')).toThrow(ProtocolError);
+		expect(() => parseIpv6('1:2:3:4:5:6:7:8:9')).toThrow(ProtocolError);
+	});
+
+	it('rejects a non-16-octet IPv6 buffer in formatIpv6', () => {
+		expect(() => formatIpv6(new Uint8Array(15))).toThrow(ProtocolError);
+	});
+
+	it('rejects an empty label and an over-long name in encodeName', () => {
+		expect(() => encodeName('a..b')).toThrow(ProtocolError);
+		const tooLong = ['a', 'b', 'c', 'd'].map((c) => c.repeat(63)).join('.');
+		expect(() => encodeName(tooLong)).toThrow(ProtocolError);
+	});
+
+	it('rejects a character-string over 255 octets (TXT)', () => {
+		expect(() => encodeRdata(RecordType.TXT, ['x'.repeat(256)])).toThrow(ProtocolError);
+	});
+
+	it('rejects encoding structured rdata for an unknown TYPE', () => {
+		expect(() => encodeRdata(9999, { junk: true } as unknown as string)).toThrow(ProtocolError);
+	});
+
+	it('rejects decodeOpt on a non-OPT record', () => {
+		expect(() => decodeOpt(record('z.test', RecordType.A, 60, '1.2.3.4'))).toThrow(ProtocolError);
+	});
+
+	it('rejects a message shorter than the 12-byte header', () => {
+		expect(() => decodeMessage(new Uint8Array([0x00, 0x00]))).toThrow(ProtocolError);
+	});
+
+	it('rejects a record whose rdlength runs past the message', () => {
+		// header (an=1), then a root-name A record claiming 255 rdata octets with none present
+		const hex = '000000000000000100000000' + '00' + '0001' + '0001' + '00000000' + '00ff';
+		expect(() => decodeMessage(fromHex(hex))).toThrow(ProtocolError);
+	});
+
+	it('rejects rdata too short for its TYPE (reader underrun)', () => {
+		// an A record with only 2 rdata octets where 4 are required
+		const hex = '000000000000000100000000' + '00' + '0001' + '0001' + '00000000' + '0002' + '0102';
+		expect(() => decodeMessage(fromHex(hex))).toThrow(ProtocolError);
 	});
 });
