@@ -1,6 +1,6 @@
 services:
   irc:
-    image: ghcr.io/ergochat/ergo@sha256:6a0eff2135cd4ca0cb2f6c464bb905e3ce61a7fc73b7095f379b0b55fb9de201
+    image: ghcr.io/ergochat/ergo@sha256:98975f36281cc4d65ed00bfd2764a4e6794ed39c354de385561f74d0c7ad12ef
     volumes:
       - ./ircd.yaml:/ircd/ircd.yaml:ro
     healthcheck:
