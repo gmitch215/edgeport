@@ -20,7 +20,7 @@
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">RawQuery</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#dnssec">dnssec</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#id">id</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#opcode">opcode</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#questions">questions</a><span class="tsd-signature-symbol">:</span> <a href="dns.QuestionInput.html" class="tsd-signature-type tsd-kind-interface">QuestionInput</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#recursiondesired">recursionDesired</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/index.ts#L221">src/dns/index.ts:221</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/index.ts#L221">src/dns/index.ts:221</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -43,35 +43,35 @@
 <div class="tsd-comment tsd-typography"><p>Request DNSSEC records via an EDNS0 OPT record with the DO bit set.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/index.ts#L229">src/dns/index.ts:229</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/index.ts#L229">src/dns/index.ts:229</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="id"><code class="tsd-tag">Optional</code><span>id</span><a href="#id" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">id</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Override the 16-bit query id (a random unused id is allocated otherwise).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/index.ts#L223">src/dns/index.ts:223</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/index.ts#L223">src/dns/index.ts:223</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="opcode"><code class="tsd-tag">Optional</code><span>opcode</span><a href="#opcode" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">opcode</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>The opcode; defaults to <a href="../enums/dns.Opcode.html#query" class="tsd-kind-enum-member">Opcode.QUERY</a>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/index.ts#L227">src/dns/index.ts:227</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/index.ts#L227">src/dns/index.ts:227</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="questions"><span>questions</span><a href="#questions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">questions</span><span class="tsd-signature-symbol">:</span> <a href="dns.QuestionInput.html" class="tsd-signature-type tsd-kind-interface">QuestionInput</a><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>The questions to ask (usually one).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/index.ts#L231">src/dns/index.ts:231</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/index.ts#L231">src/dns/index.ts:231</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="recursiondesired"><code class="tsd-tag">Optional</code><span>recursion<wbr/>Desired</span><a href="#recursiondesired" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">recursionDesired</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
 <div class="tsd-comment tsd-typography"><p>Set the Recursion Desired flag; defaults to true.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/index.ts#L225">src/dns/index.ts:225</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/index.ts#L225">src/dns/index.ts:225</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

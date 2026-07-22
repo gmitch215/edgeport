@@ -16,7 +16,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">ImapMessage</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#body">body</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">ArrayBufferLike</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#flags">flags</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#headers">headers</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#internaldate">internalDate</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#size">size</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#uid">uid</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-call-signature" href="#text-1">text</a><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L45">src/imap/index.ts:45</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L45">src/imap/index.ts:45</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -44,42 +44,42 @@
 <div class="tsd-comment tsd-typography"><p>Raw message bytes, when the body was fetched.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L57">src/imap/index.ts:57</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L57">src/imap/index.ts:57</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="flags"><span>flags</span><a href="#flags" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">flags</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>IMAP flags set on the message (e.g. <code>\Seen</code>, <code>\Flagged</code>).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L49">src/imap/index.ts:49</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L49">src/imap/index.ts:49</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="headers"><code class="tsd-tag">Optional</code><span>headers</span><a href="#headers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">headers</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>Parsed RFC 822 headers, lowercased keys, when the body was fetched.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L51">src/imap/index.ts:51</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L51">src/imap/index.ts:51</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="internaldate"><code class="tsd-tag">Optional</code><span>internal<wbr/>Date</span><a href="#internaldate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">internalDate</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Server-side internal date string, when present.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L53">src/imap/index.ts:53</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L53">src/imap/index.ts:53</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="size"><code class="tsd-tag">Optional</code><span>size</span><a href="#size" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">size</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Octet size reported by <code>RFC822.SIZE</code>, when requested.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L55">src/imap/index.ts:55</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L55">src/imap/index.ts:55</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="uid"><span>uid</span><a href="#uid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">uid</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Unique identifier within the selected mailbox.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L47">src/imap/index.ts:47</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L47">src/imap/index.ts:47</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -99,7 +99,7 @@ callers do not build a <code>TextDecoder</code>. The raw bytes remain on <a href
 <h4 class="tsd-anchor-link" id="since">Since<a href="#since" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>1.0.4</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/imap/index.ts#L65">src/imap/index.ts:65</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/imap/index.ts#L65">src/imap/index.ts:65</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

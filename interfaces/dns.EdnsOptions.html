@@ -20,7 +20,7 @@
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">EdnsOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#dnssecok">dnssecOk</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#extendedrcode">extendedRcode</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#options">options</a><span class="tsd-signature-symbol">?:</span> <a href="dns.EdnsOption.html" class="tsd-signature-type tsd-kind-interface">EdnsOption</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#udppayloadsize">udpPayloadSize</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#version">version</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/message.ts#L1376">src/dns/message.ts:1376</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/message.ts#L1376">src/dns/message.ts:1376</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -43,35 +43,35 @@
 <div class="tsd-comment tsd-typography"><p>Set the DNSSEC OK (DO) bit to request DNSSEC records.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/message.ts#L1380">src/dns/message.ts:1380</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/message.ts#L1380">src/dns/message.ts:1380</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="extendedrcode"><code class="tsd-tag">Optional</code><span>extended<wbr/>Rcode</span><a href="#extendedrcode" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">extendedRcode</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>The upper 8 bits of the extended RCODE; defaults to 0.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/message.ts#L1382">src/dns/message.ts:1382</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/message.ts#L1382">src/dns/message.ts:1382</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="options"><code class="tsd-tag">Optional</code><span>options</span><a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">options</span><span class="tsd-signature-symbol">?:</span> <a href="dns.EdnsOption.html" class="tsd-signature-type tsd-kind-interface">EdnsOption</a><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Extra EDNS options to carry in the rdata.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/message.ts#L1386">src/dns/message.ts:1386</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/message.ts#L1386">src/dns/message.ts:1386</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="udppayloadsize"><code class="tsd-tag">Optional</code><span>udp<wbr/>Payload<wbr/>Size</span><a href="#udppayloadsize" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">udpPayloadSize</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>The advertised UDP payload size; defaults to <a href="../variables/dns.DEFAULT_UDP_PAYLOAD_SIZE.html" class="tsd-kind-variable">DEFAULT_UDP_PAYLOAD_SIZE</a>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/message.ts#L1378">src/dns/message.ts:1378</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/message.ts#L1378">src/dns/message.ts:1378</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="version"><code class="tsd-tag">Optional</code><span>version</span><a href="#version" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">version</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>The EDNS version; defaults to 0 (EDNS0).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/dns/message.ts#L1384">src/dns/message.ts:1384</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/dns/message.ts#L1384">src/dns/message.ts:1384</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

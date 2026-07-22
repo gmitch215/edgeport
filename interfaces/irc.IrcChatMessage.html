@@ -20,7 +20,7 @@
 </div></div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">IrcChatMessage</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#ctcp">ctcp</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">args</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">command</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#element">element</a><span class="tsd-signature-symbol">?:</span> <a href="irc.IrcMessage.html" class="tsd-signature-type tsd-kind-interface">IrcMessage</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#from">from</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#ischannel">isChannel</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#tags">tags</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#target">target</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#text">text</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#type">type</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;privmsg&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;notice&quot;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L126">src/irc/index.ts:126</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L126">src/irc/index.ts:126</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -46,56 +46,56 @@
 <div class="tsd-comment tsd-typography"><p>The parsed CTCP command/args when the body was CTCP-wrapped (e.g. an <code>ACTION</code>).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L140">src/irc/index.ts:140</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L140">src/irc/index.ts:140</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="element"><code class="tsd-tag">Optional</code><span>element</span><a href="#element" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">element</span><span class="tsd-signature-symbol">?:</span> <a href="irc.IrcMessage.html" class="tsd-signature-type tsd-kind-interface">IrcMessage</a></div>
 <div class="tsd-comment tsd-typography"><p>The underlying parsed message element, for access to the raw prefix/params.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L142">src/irc/index.ts:142</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L142">src/irc/index.ts:142</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="from"><span>from</span><a href="#from" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">from</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The sender's nick (or the raw prefix when it is a servername).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L128">src/irc/index.ts:128</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L128">src/irc/index.ts:128</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="ischannel"><span>is<wbr/>Channel</span><a href="#ischannel" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">isChannel</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 <div class="tsd-comment tsd-typography"><p>Whether <a href="#target" class="tsd-kind-property">target</a> is a channel (vs a direct message to us).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L136">src/irc/index.ts:136</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L136">src/irc/index.ts:136</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="tags"><span>tags</span><a href="#tags" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">tags</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>IRCv3 message tags (e.g. <code>time</code> from server-time); empty when none were sent.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L138">src/irc/index.ts:138</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L138">src/irc/index.ts:138</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="target"><span>target</span><a href="#target" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">target</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The message target: a channel name or (for a direct message) our own nick.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L130">src/irc/index.ts:130</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L130">src/irc/index.ts:130</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="text"><span>text</span><a href="#text" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">text</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The message text (the CTCP delimiters are stripped when <a href="#ctcp" class="tsd-kind-property">ctcp</a> is set).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L132">src/irc/index.ts:132</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L132">src/irc/index.ts:132</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="type"><span>type</span><a href="#type" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">type</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;privmsg&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;notice&quot;</span></div>
 <div class="tsd-comment tsd-typography"><p>Whether this was a <code>PRIVMSG</code> or a <code>NOTICE</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/89af42e4e4eca7090545b73a0a07d8829d06e6d8/src/irc/index.ts#L134">src/irc/index.ts:134</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/gmitch215/edgeport/blob/2beaa131ad09e01dfc8d2f8cf18e97de7c6ca281/src/irc/index.ts#L134">src/irc/index.ts:134</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
