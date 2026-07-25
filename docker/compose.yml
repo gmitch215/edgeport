@@ -179,7 +179,7 @@ services:
       - '127.0.0.1:5222:5222' # xmpp c2s (plaintext)
 
   irc:
-    image: ghcr.io/ergochat/ergo:stable@sha256:0ccde041f89f4b526a2d445b25078de80d3fa43fd8d3208deb242ae6b2b81d61
+    image: ghcr.io/ergochat/ergo:stable@sha256:35c6fec4c7ab4e9c470892f4a9647a1d0db5c1a82d65d8bc8d0e521645beb4ad
     volumes:
       - ./irc/ircd.yaml:/ircd/ircd.yaml:ro
     healthcheck:
