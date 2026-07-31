@@ -50,7 +50,7 @@ services:
       - '127.0.0.1:8081:8081'
 
   nats:
-    image: nats:2.14.3@sha256:67ac7866d010e8d83302dd30332eeae1a2b7a8ee051155e2eb5a5485b720cd4b
+    image: nats:2.14.4@sha256:ecf677bae6a0ae7900bd3217be041c6614d5dcd2cae780000f9cd69462b36541
     # -js enables JetStream so recovery.spec can verify durable message continuity
     command:
       ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0', '-js', '-sd', '/tmp/js']
@@ -162,7 +162,7 @@ services:
       - '127.0.0.1:5354:53/udp'
 
   xmpp:
-    image: ghcr.io/processone/ejabberd:26.04@sha256:68482e33ff11934e73ef2881cf455ccefc1e03b31203f3ab651f4b2b1152b4a8
+    image: ghcr.io/processone/ejabberd:26.07@sha256:5aeb0faa39cfe38792c5eea9cc6344ba9ab6c59c708a24e897d6b471882c8497
     # ejabberd's BEAM VM can crash-exit (code 1) during the full-stack startup crunch; let docker
     # restart it so a transient boot flake self-recovers instead of failing `up --wait` (CI #130)
     restart: on-failure
