@@ -1,6 +1,6 @@
 services:
   xmpp:
-    image: ghcr.io/processone/ejabberd@sha256:68482e33ff11934e73ef2881cf455ccefc1e03b31203f3ab651f4b2b1152b4a8
+    image: ghcr.io/processone/ejabberd@sha256:5aeb0faa39cfe38792c5eea9cc6344ba9ab6c59c708a24e897d6b471882c8497
     environment:
       # pre-register the two test accounts once on first container creation (SEPARATOR=;)
       CTL_ON_CREATE: 'register tester localhost testpass ; register tester2 localhost testpass'
