@@ -11,6 +11,7 @@
  * @author Gregory Mitchell
  * @since 1.0.0
  */
+import { ProtocolError } from '../core/errors';
 import { parseEmailAddress } from '../util';
 import type { Mail } from './index';
 
@@ -36,7 +37,36 @@ function messageId(from: string): string {
 
 /** A single MIME header line; values are emitted as-is (caller keeps them ASCII). */
 function header(name: string, value: string): string {
-	return `${name}: ${value}`;
+	return `${clean(name, 'header name')}: ${clean(value, `header ${name}`)}`;
+}
+
+/**
+ * Refuses a CR or LF in anything that becomes part of a header line.
+ *
+ * A header block is delimited by CRLF and terminated by a blank line, so a newline reaching
+ * this function is not a formatting problem -- it is a second header, or the start of the
+ * body. `subject: 'Hi\r\nBcc: attacker@example.com'` silently adds a recipient, and
+ * `'\r\n\r\n'` replaces the message. Every caller-supplied field arrives here: the addresses,
+ * the subject, `headers`, and an attachment filename.
+ *
+ * THROWN, not stripped. A subject quietly missing a line is a message the sender did not
+ * write, and folding it correctly (RFC 5322 §2.2.3) would mean guessing which of the two
+ * meanings was intended. A NUL is refused with them; it terminates the string for some
+ * downstream parsers and can hide the rest of the line from a filter that reads C strings.
+ */
+function clean(value: string, what: string): string {
+	const text = String(value ?? '');
+	if (/[\r\n\0]/.test(text)) {
+		throw new ProtocolError(
+			`${what} contains a line break or NUL, which would inject a header or a body`
+		);
+	}
+	return text;
+}
+
+/** A header parameter as a quoted-string, with `\` and `"` escaped so it cannot end early. */
+function quoted(value: string): string {
+	return `"${String(value ?? '').replace(/([\\"])/g, '\\$1')}"`;
 }
 
 /** Encodes bytes as base64 wrapped at 76 columns (RFC 2045). */
@@ -148,14 +178,14 @@ export function buildMime(mail: Mail): Uint8Array {
 		lines.push('', `--${boundary}`, ...body.headerLines, '', ...body.contentLines);
 		for (const att of attachments) {
 			lines.push(`--${boundary}`);
+			// quoted-string escaping (RFC 2045 via RFC 822): a `"` in a filename would otherwise
+			// close the parameter early and let the rest of the name become further parameters
+			const filename = quoted(att.filename);
 			lines.push(
-				header(
-					'Content-Type',
-					`${att.contentType ?? 'application/octet-stream'}; name="${att.filename}"`
-				)
+				header('Content-Type', `${att.contentType ?? 'application/octet-stream'}; name=${filename}`)
 			);
 			lines.push(header('Content-Transfer-Encoding', 'base64'));
-			lines.push(header('Content-Disposition', `attachment; filename="${att.filename}"`));
+			lines.push(header('Content-Disposition', `attachment; filename=${filename}`));
 			lines.push('');
 			lines.push(...base64Lines(att.content));
 		}

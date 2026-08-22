@@ -381,6 +381,64 @@ describe('SMTP envelope address extraction', () => {
 	});
 });
 
+/**
+ * HEADER INJECTION, which is what a newline in a header field is.
+ *
+ * A header block is delimited by CRLF and ends at a blank line, so `subject` carrying `\r\n`
+ * does not produce a malformed subject -- it produces a second header. Every field below is
+ * caller-supplied and reaches the same builder, and a mailer that lets a subject add a `Bcc`
+ * is a mailer that sends anywhere the caller's input says.
+ */
+describe('MIME builder: a header field cannot become a header', () => {
+	const base = { from: 'a@example.com', to: 'b@example.com', text: 'body' };
+
+	it.each([
+		['subject', { ...base, subject: 'Hi\r\nBcc: attacker@evil.example' }],
+		['subject with a bare LF', { ...base, subject: 'Hi\nBcc: attacker@evil.example' }],
+		['subject ending the header block', { ...base, subject: 'Hi\r\n\r\nInjected body' }],
+		['from', { ...base, from: 'a@example.com\r\nBcc: attacker@evil.example', subject: 'Hi' }],
+		['to', { ...base, to: 'b@example.com\r\nBcc: attacker@evil.example', subject: 'Hi' }],
+		['cc', { ...base, cc: 'c@example.com\r\nBcc: attacker@evil.example', subject: 'Hi' }],
+		['a custom header value', { ...base, subject: 'Hi', headers: { 'X-A': 'v\r\nBcc: e@x' } }],
+		['a custom header name', { ...base, subject: 'Hi', headers: { 'X\r\nBcc: e@x': 'v' } }],
+		['a NUL, which hides the rest from a C-string filter', { ...base, subject: 'Hi\0Bcc: e@x' }]
+	])('refuses %s', (_what, mail) => {
+		expect(() => buildMime(mail as Parameters<typeof buildMime>[0])).toThrow(ProtocolError);
+	});
+
+	it('refuses an attachment filename carrying one', () => {
+		expect(() =>
+			buildMime({
+				...base,
+				subject: 'Hi',
+				attachments: [{ filename: 'a\r\nBcc: e@x.txt', content: new Uint8Array([1]) }]
+			})
+		).toThrow(ProtocolError);
+	});
+
+	/**
+	 * The filename is interpolated inside a quoted-string, so a `"` closes the parameter early
+	 * and everything after it becomes further parameters. Escaped rather than refused: a quote
+	 * is a legal character in a filename and a sender may reasonably have one.
+	 */
+	it('escapes a quote in a filename rather than letting it end the parameter', () => {
+		const out = decoder.decode(
+			buildMime({
+				...base,
+				subject: 'Hi',
+				attachments: [{ filename: 'a".txt', content: new Uint8Array([1]) }]
+			})
+		);
+		expect(out).toContain('filename="a\\".txt"');
+		expect(out).not.toContain('filename="a".txt"');
+	});
+
+	it('CONTROL: an ordinary message still builds', () => {
+		const out = decoder.decode(buildMime({ ...base, subject: 'Perfectly normal' }));
+		expect(out).toContain('Subject: Perfectly normal');
+	});
+});
+
 describe('MIME builder', () => {
 	it('returns raw verbatim when provided', () => {
 		const raw = new TextEncoder().encode('Subject: x\r\n\r\nbody');
