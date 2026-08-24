@@ -30,6 +30,7 @@ edgeport is written for the Workers runtime from the ground up.
 - [DNS](#dns)
 - [XMPP](#xmpp)
 - [IRC](#irc)
+- [Redis](#redis)
 - [Utilities](#utilities)
 - [Real-World Recipes](#real-world-recipes)
 - [Error Handling](#error-handling)
@@ -50,7 +51,7 @@ the runtime does not provide. edgeport is:
 - **Tested against Real Servers.** Every protocol is verified under `workerd` against
   Dockerized servers (OpenSSH, Dropbear, GreenMail, NATS with JetStream, Mosquitto, ActiveMQ,
   OpenLDAP, an FTP server, an SMPP SMSC simulator, a Kamailio SIP server, a CoreDNS resolver, an
-  ejabberd XMPP server, an Ergo IRC server, and a WebSocket echo server) - not mocks.
+  ejabberd XMPP server, an Ergo IRC server, a Redis server, and a WebSocket echo server) - not mocks.
 
 ## Features
 
@@ -70,6 +71,7 @@ the runtime does not provide. edgeport is:
 - **DNS** over TCP (RFC 1035): `resolve`, typed record helpers, reverse lookups, and raw queries.
 - **XMPP** (RFC 6120/6121): presence, messages, roster, and pubsub through a concept API.
 - **IRC** (RFC 1459/2812 + IRCv3): channels, messages, events, SASL, and raw commands.
+- **Redis** (RESP2/RESP3): typed commands, pipelines, transactions, Lua scripting, and Pub/Sub.
 - **Email-to-SMS** carrier-gateway addressing layered on SMTP (`sendSms`).
 - **Utilities** (`edgeport/util`): hex/base64 codecs, random ids, retry-with-backoff, email-address
   parsing, and promise deadlines.
@@ -1384,6 +1386,132 @@ await irc.send('MODE', '#edgeport', '+o', 'alice'); // MODE #edgeport +o alice
 await irc.sendRaw('WHO #edgeport');
 ```
 
+## Redis
+
+RESP over TCP, both protocol versions. Plaintext 6379, or implicit TLS against a server with
+`tls-port` configured.
+
+```typescript
+import { connect } from 'edgeport/redis';
+
+await using redis = await connect({ hostname: 'redis.example.com', password: env.REDIS_PASSWORD });
+
+await redis.set('session:abc', JSON.stringify({ user: 7 }), { ex: 3600 });
+const session = await redis.getText('session:abc');
+const visits = await redis.incr('visits');
+```
+
+### One-shot Command
+
+```typescript
+import { command } from 'edgeport/redis';
+
+const reply = await command({
+	hostname: 'redis.example.com',
+	password: env.REDIS_PASSWORD,
+	args: ['GET', 'feature:flags']
+});
+const flags = reply.isNull ? {} : reply.json<Record<string, boolean>>();
+```
+
+### Typed Commands
+
+Strings, keys, hashes, lists, sets, sorted sets, and scripting have typed methods. `send` runs
+every other command, including the ones a Redis module adds.
+
+```typescript
+await redis.hset('user:7', { name: 'ada', year: 1815 });
+await redis.hgetall('user:7'); // { name: 'ada', year: '1815' }
+
+await redis.rpush('queue', 'job-1', 'job-2');
+await redis.lrange('queue', 0, -1); // ['job-1', 'job-2']
+
+await redis.zadd('leaders', { ada: 10, alan: 8 });
+await redis.zrangeWithScores('leaders', 0, -1, { rev: true });
+// [{ member: 'ada', score: 10 }, { member: 'alan', score: 8 }]
+
+for await (const key of redis.scanIterator({ match: 'session:*' })) {
+	await redis.del(key);
+}
+
+await redis.eval('return redis.call("SET", KEYS[1], ARGV[1])', { keys: ['k'], args: ['v'] });
+await redis.send('XADD', 'events', '*', 'kind', 'deploy');
+```
+
+`get` and `hget` return raw bytes so values stay binary-safe; `getText` and `hgetText` return the
+decoded string. Both give `null` for a missing key.
+
+### Pipelines and Transactions
+
+`pipeline` sends a batch in one round trip. `multi` wraps the same batch in `MULTI` / `EXEC` so it
+applies atomically. In both, a per-command failure lands on that reply's `error` rather than
+discarding the other results, and reading a failed reply's value throws.
+
+```typescript
+const [, count] = await redis.pipeline([
+	['SET', 'k', 'v'],
+	['INCR', 'n']
+]);
+count.number(); // 1
+
+const [balance] = await redis.multi([
+	['INCRBY', 'balance', 50],
+	['EXPIRE', 'balance', 3600]
+]);
+```
+
+### Pub/Sub
+
+`subscribe` resolves once the server has confirmed every channel, so a publish issued afterwards
+is delivered.
+
+```typescript
+await using sub = await redis.subscribe('deploys');
+for await (const msg of sub) {
+	console.log(msg.channel, msg.json());
+}
+```
+
+Pattern subscriptions carry the pattern that matched alongside the channel:
+
+```typescript
+await using sub = await redis.psubscribe('news.*');
+for await (const msg of sub) {
+	console.log(msg.pattern, msg.channel, msg.text());
+}
+```
+
+### RESP3
+
+`protocol: 3` runs the `HELLO 3` handshake, which Redis 6 and newer support. Replies gain the
+richer types (maps, sets, doubles, booleans) and the connection keeps working as a command
+connection while subscribed, which RESP2 refuses.
+
+```typescript
+await using redis = await connect({ hostname: 'redis.example.com', protocol: 3 });
+redis.serverInfo?.version; // '8.8.2'
+
+await using sub = await redis.subscribe('deploys');
+await redis.set('last-seen', '1'); // a RESP2 connection rejects this while subscribed
+```
+
+`HGETALL` and `ZRANGE ... WITHSCORES` return different shapes on the two versions; `hgetall` and
+`zrangeWithScores` normalize both, so switching `protocol` does not change your code.
+
+### Raw RESP
+
+`encodeCommand`, `readReply`, and the `RespValue` union are exported for tooling that needs the
+codec directly. Every reply also keeps its decoded value on `raw`.
+
+```typescript
+import { encodeCommand } from 'edgeport/redis';
+
+encodeCommand(['LLEN', 'mylist']); // *2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n
+
+const reply = await redis.send('ZSCORE', 'leaders', 'ada');
+reply.raw.kind; // 'bulk' on RESP2, 'double' on RESP3
+```
+
 ## Utilities
 
 `edgeport/util` is a small set of transport-free helpers the protocol modules share, published
@@ -1628,6 +1756,12 @@ try {
   `edgeport/dns` speaks DNS-over-TCP (RFC 7766); DNS-over-TLS works via `tls: 'implicit'`. The
   default resolver `1.1.1.1` is a Cloudflare IP, which the runtime blocks outbound - pass
   `RESOLVERS.google` / `RESOLVERS.quad9` from inside a Worker.
+- **Redis is standalone-only.** Cluster redirections (`-MOVED` / `-ASK`) surface as
+  `ProtocolError` rather than being followed, and Sentinel discovery and sharded Pub/Sub
+  (`SSUBSCRIBE`) are out of scope. `protocol: 3` is not negotiated down either: a server that
+  cannot speak RESP3 fails the connect instead of silently falling back, because the two versions
+  return different reply shapes for the same command. RESP integers decode to JS numbers, so a
+  value past 2^53 loses precision; RESP3 big numbers decode to `bigint`.
 - **XMPP and IRC over TLS are proven only against a real trusted-cert server.** workerd validates
   certificates, so the self-signed docker servers exercise the plaintext path end-to-end while
   STARTTLS / implicit-TLS for both is unit-tested; both connect fine to a public TLS server.
