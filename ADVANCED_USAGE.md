@@ -30,29 +30,31 @@ set with `wrangler secret put NAME` or in `wrangler.jsonc` `vars`). Each recipe 
 exact variables it needs under **Prerequisites**; this is the catalog of what they are, what
 the values look like, and where they come from.
 
-| Variable                                 | Service / what it is                                 | Example value                                            | How to get it                                                                  |
-| ---------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `BOX` / `deviceHost`                     | SSH/SFTP host (your server, bastion, or edge device) | `ssh.example.com` or `10.0.0.7`                          | the hostname/IP of a box you can reach on port 22                              |
-| `SSH_KEY`                                | SSH private key (PKCS#8 or OpenSSH PEM)              | `-----BEGIN PRIVATE KEY-----\n...`                       | `ssh-keygen -t ed25519`; install the `.pub` in the box's `authorized_keys`     |
-| `SSH_KEY_PASSPHRASE`                     | passphrase for an encrypted private key              | `correct horse battery staple`                           | whatever you set at `ssh-keygen` time                                          |
-| `MAIL` / `SMTP` / `SMTP_HOST`            | SMTP (and IMAP/POP3) server host                     | `smtp.example.com` or `smtp.mx.cloudflare.net`           | your mail provider, or Cloudflare Email Service (see below)                    |
-| `MAIL_USER` / `SMTP_USER`                | SMTP/IMAP/POP3 login                                 | `postmaster@example.com` (or literal `api_token` for CF) | provider mailbox; for CF Email Service the username is the literal `api_token` |
-| `MAIL_PW` / `SMTP_PW` / `CF_EMAIL_TOKEN` | mailbox password or API token                        | a password, or `v1.0-abc...` token                       | provider; for CF, an API token with **Email Sending: Edit**                    |
-| `ONCALL` / `OPS` / `STAKEHOLDERS`        | recipient email address(es)                          | `oncall@example.com`                                     | your distribution list                                                         |
-| `LDAP`                                   | LDAP/LDAPS directory host                            | `ldap.example.com`                                       | your directory server (389 plaintext/StartTLS, 636 LDAPS)                      |
-| `SVC_DN` / `SVC_PW`                      | service bind DN + password                           | `cn=svc,dc=example,dc=org` / a password                  | create a bind account in your directory                                        |
-| `NATS`                                   | NATS server host                                     | `nats.example.com` or `connect.ngs.global`               | self-hosted NATS, or Synadia Cloud (NGS)                                       |
-| `NATS_TOKEN` / `NATS_CREDS`              | NATS auth token, or a `.creds` file's contents       | `s3cr3t-token`                                           | server config; NGS issues a `.creds` file                                      |
-| `BROKER`                                 | MQTT broker host                                     | `broker.example.com`                                     | self-hosted Mosquitto/EMQX, or a cloud broker                                  |
-| `MQTT_USER` / `MQTT_PASS`                | MQTT credentials (or omit for anonymous)             | `device` / a password                                    | broker config                                                                  |
-| `MQ` / `MQ_USER` / `MQ_PASS`             | STOMP broker host + creds (ActiveMQ/RabbitMQ)        | `mq.example.com` / `admin` / `admin`                     | broker config                                                                  |
-| `FTP` / `LANDING` / `DR`                 | FTP server host(s)                                   | `files.example.com`                                      | your FTP server (passive mode; ports 21 + a passive range)                     |
-| `GW`                                     | WebSocket gateway host (for `wss://`)                | `gateway.example.com`                                    | your realtime/WS endpoint                                                      |
-| `SIEM`                                   | syslog collector host (RFC 5424 over TLS)            | `logs.example.com`                                       | your SIEM/log aggregator (Datadog, Splunk, rsyslog, ...) listening on 6514     |
-| `SMSC`                                   | SMPP SMSC host (carrier/aggregator or a simulator)   | `smsc.example.com`                                       | your SMS provider's SMPP endpoint (port 2775)                                  |
-| `SMPP_SYSTEM_ID` / `SMPP_PW`             | SMPP bind credentials (ESME system id + password)    | `esme` / a password                                      | issued by your SMS provider                                                    |
-| `SIP` / `SIP_DOMAIN`                     | SIP registrar/proxy host + served SIP domain         | `sip.example.com` / `example.com`                        | your PBX / SIP trunk (Asterisk, FreeSWITCH, Kamailio, Twilio/Telnyx)           |
-| `SIP_USER` / `SIP_PW`                    | SIP account username + password (digest)             | `alice` / a password                                     | your SIP provider / PBX account                                                |
+| Variable                                 | Service / what it is                                            | Example value                                            | How to get it                                                                  |
+| ---------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `BOX` / `deviceHost`                     | SSH/SFTP host (your server, bastion, or edge device)            | `ssh.example.com` or `10.0.0.7`                          | the hostname/IP of a box you can reach on port 22                              |
+| `SSH_KEY`                                | SSH private key (PKCS#8 or OpenSSH PEM)                         | `-----BEGIN PRIVATE KEY-----\n...`                       | `ssh-keygen -t ed25519`; install the `.pub` in the box's `authorized_keys`     |
+| `SSH_KEY_PASSPHRASE`                     | passphrase for an encrypted private key                         | `correct horse battery staple`                           | whatever you set at `ssh-keygen` time                                          |
+| `MAIL` / `SMTP` / `SMTP_HOST`            | SMTP (and IMAP/POP3) server host                                | `smtp.example.com` or `smtp.mx.cloudflare.net`           | your mail provider, or Cloudflare Email Service (see below)                    |
+| `MAIL_USER` / `SMTP_USER`                | SMTP/IMAP/POP3 login                                            | `postmaster@example.com` (or literal `api_token` for CF) | provider mailbox; for CF Email Service the username is the literal `api_token` |
+| `MAIL_PW` / `SMTP_PW` / `CF_EMAIL_TOKEN` | mailbox password or API token                                   | a password, or `v1.0-abc...` token                       | provider; for CF, an API token with **Email Sending: Edit**                    |
+| `ONCALL` / `OPS` / `STAKEHOLDERS`        | recipient email address(es)                                     | `oncall@example.com`                                     | your distribution list                                                         |
+| `LDAP`                                   | LDAP/LDAPS directory host                                       | `ldap.example.com`                                       | your directory server (389 plaintext/StartTLS, 636 LDAPS)                      |
+| `SVC_DN` / `SVC_PW`                      | service bind DN + password                                      | `cn=svc,dc=example,dc=org` / a password                  | create a bind account in your directory                                        |
+| `NATS`                                   | NATS server host                                                | `nats.example.com` or `connect.ngs.global`               | self-hosted NATS, or Synadia Cloud (NGS)                                       |
+| `NATS_TOKEN` / `NATS_CREDS`              | NATS auth token, or a `.creds` file's contents                  | `s3cr3t-token`                                           | server config; NGS issues a `.creds` file                                      |
+| `BROKER`                                 | MQTT broker host                                                | `broker.example.com`                                     | self-hosted Mosquitto/EMQX, or a cloud broker                                  |
+| `MQTT_USER` / `MQTT_PASS`                | MQTT credentials (or omit for anonymous)                        | `device` / a password                                    | broker config                                                                  |
+| `MQ` / `MQ_USER` / `MQ_PASS`             | STOMP broker host + creds (ActiveMQ/RabbitMQ)                   | `mq.example.com` / `admin` / `admin`                     | broker config                                                                  |
+| `FTP` / `LANDING` / `DR`                 | FTP server host(s)                                              | `files.example.com`                                      | your FTP server (passive mode; ports 21 + a passive range)                     |
+| `GW`                                     | WebSocket gateway host (for `wss://`)                           | `gateway.example.com`                                    | your realtime/WS endpoint                                                      |
+| `SIEM`                                   | syslog collector host (RFC 5424 over TLS)                       | `logs.example.com`                                       | your SIEM/log aggregator (Datadog, Splunk, rsyslog, ...) listening on 6514     |
+| `SMSC`                                   | SMPP SMSC host (carrier/aggregator or a simulator)              | `smsc.example.com`                                       | your SMS provider's SMPP endpoint (port 2775)                                  |
+| `SMPP_SYSTEM_ID` / `SMPP_PW`             | SMPP bind credentials (ESME system id + password)               | `esme` / a password                                      | issued by your SMS provider                                                    |
+| `SIP` / `SIP_DOMAIN`                     | SIP registrar/proxy host + served SIP domain                    | `sip.example.com` / `example.com`                        | your PBX / SIP trunk (Asterisk, FreeSWITCH, Kamailio, Twilio/Telnyx)           |
+| `SIP_USER` / `SIP_PW`                    | SIP account username + password (digest)                        | `alice` / a password                                     | your SIP provider / PBX account                                                |
+| `REDIS`                                  | Redis host                                                      | `redis.example.com`                                      | self-hosted Redis, or a managed provider (port 6379, or 6380 for TLS)          |
+| `REDIS_USER` / `REDIS_PW`                | Redis ACL username + password (omit the user for `requirepass`) | `worker` / a password                                    | `ACL SETUSER` on the server, or the provider's console                         |
 
 **Cloudflare Email Service (SMTP):** set `SMTP`/`MAIL` to `smtp.mx.cloudflare.net`, `tls: 'implicit'`
 (port 465), the username to the literal string `api_token`, and the password to a Cloudflare API
@@ -83,6 +85,7 @@ the [Cloudflare Email Service SMTP docs](https://developers.cloudflare.com/email
 | [DNS Recovery Agent](#dns-recovery-agent)                       | DNS + SSH + SMTP + Syslog                | DNS discovery, SSH health probe + recovery, ordered audit, email |
 | [XMPP ChatOps Bot](#xmpp-chatops-bot)                           | XMPP + SSH + Syslog + SMTP               | Chat command drives SSH exec + reply, audit, email-on-failure    |
 | [IRC NOC Alert Bridge](#irc-noc-alert-bridge)                   | IRC + DNS + SMTP + Syslog                | DNS-driven status to an ops channel, audit, emailed digest       |
+| [Idempotent Webhook Fan-Out](#idempotent-webhook-fan-out)       | Redis + DNS + Syslog + SMTP              | SET NX dedupe across isolates, queue + pub/sub fan-out, audit    |
 
 ---
 
@@ -1198,6 +1201,80 @@ await smtpSend({
 
 **Use case:** DNS-driven service monitoring fanned out to a chat channel, an audit log, and email.
 
+## Idempotent Webhook Fan-Out
+
+### Prerequisites
+
+- **Redis** `REDIS` + `REDIS_PW`; the shared dedupe key, job queue, and fan-out channel.
+- **DNS resolver** `DNS_RESOLVER`; discovers the downstream target the job is sent to.
+- **Syslog** `SIEM`; the claim/drain audit trail.
+- **SMTP** `SMTP` + creds; the processed digest.
+
+See [Environment & Services](#environment--services) for value formats and how to obtain each.
+
+A webhook endpoint that survives retries. Worker isolates share no memory, so the delivery id is
+claimed in Redis with `SET NX EX`: the first caller wins and everyone else sees a duplicate. The
+accepted job is queued on a Redis list and published to a Redis channel, so a consumer already
+listening picks it up immediately while the list keeps it if nobody is. The consumer drains the
+queue, audits both stages to Syslog, and emails a digest.
+
+```typescript
+import { connect as redisConnect } from 'edgeport/redis';
+import { resolve4, RESOLVERS } from 'edgeport/dns';
+import { connect as syslogConnect } from 'edgeport/syslog';
+import { send as smtpSend } from 'edgeport/smtp';
+
+await using redis = await redisConnect({ hostname: env.REDIS, password: env.REDIS_PW });
+
+// the delivery id is the idempotency key; NX means only the first arrival is accepted
+const claimed = await redis.set(`webhook:${deliveryId}`, '1', { nx: true, ex: 3600 });
+if (!claimed) return new Response('duplicate', { status: 200 });
+
+const [target] = await resolve4('ingest.example.com', {
+	server: env.DNS_RESOLVER ?? RESOLVERS.google
+});
+const job = JSON.stringify({ deliveryId, target });
+
+await redis.rpush('queue:webhooks', job); // durable if no consumer is live
+await redis.publish('jobs:webhooks', job); // immediate if one is
+await redis.hset('status:webhooks', { [deliveryId]: 'queued' });
+```
+
+The consumer connects with `protocol: 3` so it can stay subscribed and still run commands on the
+same connection, which RESP2 forbids:
+
+```typescript
+await using consumer = await redisConnect({
+	hostname: env.REDIS,
+	password: env.REDIS_PW,
+	protocol: 3
+});
+await using log = await syslogConnect({ hostname: env.SIEM, appName: 'webhook-fanout' });
+await using sub = await consumer.subscribe('jobs:webhooks');
+
+for await (const msg of sub) {
+	const { deliveryId, target } = msg.json<{ deliveryId: string; target: string }>();
+	await consumer.lpop('queue:webhooks');
+	// deliver the job to `target` here
+	await consumer.hset('status:webhooks', { [deliveryId]: 'done' });
+	await log.info(`webhook-drained ${deliveryId} target=${target}`);
+
+	const processed = await consumer.incr('processed:webhooks');
+	await smtpSend({
+		hostname: env.SMTP,
+		auth: { username: env.SMTP_USER, password: env.SMTP_PW },
+		from: 'hooks@example.com',
+		to: env.ONCALL,
+		subject: 'Webhook digest',
+		text: `Processed ${processed} deliveries; latest ${deliveryId} -> ${target}`
+	});
+	break;
+}
+```
+
+**Use case:** at-least-once webhook delivery made effectively-once with shared edge state, then
+queued, fanned out, audited, and reported.
+
 ## Notes on Test Infrastructure
 
 - **Syslog readback:** the Dockerized syslog service ingests on `:5514` and serves the
@@ -1211,6 +1288,11 @@ await smtpSend({
   `submit_sm`, and emits a delivery-receipt `deliver_sm` (`stat:DELIVRD`) a couple of seconds
   after a `submit_sm` that set `registered_delivery`; mobile-originated messages can be injected
   via its HTTP form on `:12775`.
+- **Redis:** the Dockerized server sets `requirepass testpass` (so `AUTH testpass` binds as the
+  `default` user) and additionally defines an ACL user `tester` with the same password, which
+  covers the two-argument `AUTH <user> <pass>` form. Being Redis 8.8 it speaks both RESP2 and
+  RESP3, so the integration suite runs the same command surface under each and asserts the
+  normalized results match.
 - **SIP:** a Kamailio 5.6 registrar/proxy (`docker/sip`, built at runtime on a digest-pinned
   Debian base) challenges digest in realm `edgeport.test` (creds `tester`/`testpass`, a
   realm-static password so any username binds), accepts RFC 5626 outbound registrations, and
