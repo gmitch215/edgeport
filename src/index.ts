@@ -26,6 +26,7 @@ export * as ldaps from './ldaps';
 export * as mqtt from './mqtt';
 export * as nats from './nats';
 export * as pop3 from './pop3';
+export * as redis from './redis';
 export * as sftp from './sftp';
 export * as sip from './sip';
 export * as smpp from './smpp';
