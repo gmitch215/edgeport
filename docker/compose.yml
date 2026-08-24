@@ -65,8 +65,14 @@ services:
       FTP_USER_PASS: 'testpass'
       FTP_USER_HOME: '/home/ftpusers/tester'
       FTP_PASSIVE_PORTS: '40000:40009'
+      # the image defaults both to 5; the suite churns a control plus a passive data connection
+      # per operation from a single source IP, and past the cap pure-ftpd drops the connection
+      # without sending a banner (reads as "connection closed before delimiter was found")
+      FTP_MAX_CLIENTS: '64'
+      FTP_MAX_CONNECTIONS: '64'
     healthcheck:
-      test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/21']
+      # read the greeting, not just the open port: a server at its client cap still accepts TCP
+      test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/127.0.0.1/21 && head -c 3 <&3 | grep -q 220']
       interval: 3s
       timeout: 3s
       retries: 40
@@ -177,6 +183,30 @@ services:
       retries: 40
     ports:
       - '127.0.0.1:5222:5222' # xmpp c2s (plaintext)
+
+  redis:
+    image: redis:8.8.2-alpine@sha256:96cb544fa0af5aa898d160cffb7dae70c3df117190fc123831c64712cda425ff
+    # requirepass covers the default user (AUTH <pass>); the ACL user covers AUTH <user> <pass>
+    command:
+      [
+        'redis-server',
+        '--requirepass',
+        'testpass',
+        '--user',
+        'tester',
+        'on',
+        '>testpass',
+        '~*',
+        '&*',
+        '+@all'
+      ]
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'testpass', '--no-auth-warning', 'ping']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    ports:
+      - '127.0.0.1:6379:6379'
 
   irc:
     image: ghcr.io/ergochat/ergo:stable@sha256:72db5b93b437ea0512fb79d9d4d035f0916ccba07ed736dec19e8d5b5a73f972
