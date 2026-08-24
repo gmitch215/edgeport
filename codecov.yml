@@ -91,6 +91,9 @@ component_management:
     - component_id: irc
       name: edgeport/irc
       paths: ['src/irc/**']
+    - component_id: redis
+      name: edgeport/redis
+      paths: ['src/redis/**']
     - component_id: util
       name: edgeport/util
       paths: ['src/util/**']

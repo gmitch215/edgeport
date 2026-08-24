@@ -23,6 +23,7 @@ const entries = {
 	dns: 'src/dns/index.ts',
 	xmpp: 'src/xmpp/index.ts',
 	irc: 'src/irc/index.ts',
+	redis: 'src/redis/index.ts',
 	util: 'src/util/index.ts',
 	// building-block subpaths (edgeport/core, /wire, /crypto, /kex, /auth)
 	core: 'src/core/index.ts',
