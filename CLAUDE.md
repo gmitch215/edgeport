@@ -4,7 +4,8 @@ TypeScript TCP-protocol library for the **Cloudflare Workers** runtime built on
 `cloudflare:sockets`. Bun + strict ESM. Protocols: SSH, SFTP, SMTP, IMAP, POP3, WebSocket,
 NATS, MQTT (+ MQTT-over-WS), STOMP, FTP, LDAP/LDAPS, Syslog, SMPP (v3.4 ESME), SIP + MSRP
 (the RCS chat protocol family; signaling/messaging only, no RTP media, no carrier RCS), DNS
-(over TCP, RFC 1035 + 7766), XMPP (RFC 6120/6121 + pubsub), IRC (RFC 2812 + IRCv3). Also
+(over TCP, RFC 1035 + 7766), XMPP (RFC 6120/6121 + pubsub), IRC (RFC 2812 + IRCv3), Redis
+(RESP2 + RESP3). Also
 `edgeport/util` (transport-free hex/base64/random/retry/address/timeout helpers) and SMTP
 email-to-SMS gateways (`sendSms`).
 Runtime deps: `@noble/ciphers` (SSH ChaCha) and `bcrypt-pbkdf` (encrypted OpenSSH keys) - both
@@ -89,7 +90,10 @@ nats/mqtt/greenmail), readiness via the spec's beforeAll poll. XMPP ejabberd (`d
 LDAPS lesson), so XMPP integration uses tls:'off'. IRC ergo 2.18.0 (`docker/irc`, digest-pinned)
 plaintext 6667, no accounts/SASL required to connect, channels creatable on join, `ip-limits`
 disabled for many local clients (SASL is unit-tested only - ergo accounts need NickServ
-registration, so integration is the plaintext NICK/USER + channel flow). The publickey test key
+registration, so integration is the plaintext NICK/USER + channel flow). Redis 8.8 alpine (digest-pinned) 6379,
+`requirepass testpass` for the `default` user plus an ACL user `tester`/`testpass` (so both the
+one-arg and two-arg `AUTH` forms are covered); `redis-cli` healthcheck, speaks RESP2 + RESP3. The
+publickey test key
 is `test/fixtures/ed25519_pkcs8.pem` (its pub is in compose); more key fixtures in
 `test/fixtures/`.
 
