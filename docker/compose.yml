@@ -30,7 +30,7 @@ services:
       - '127.0.0.1:2223:2223'
 
   greenmail:
-    image: greenmail/standalone:2.1.12@sha256:9f32971b4f25d32b4de6fa2e297423768441c65e4541f6aecd7631c890a229a7
+    image: greenmail/standalone:2.1.13@sha256:3df66b7edd01c8a301343ca5e3601d8674760d4708655573560c24745e624fb2
     environment:
       GREENMAIL_OPTS: '-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=tester:testpass@localhost -Dgreenmail.verbose'
     ports:
@@ -50,7 +50,7 @@ services:
       - '127.0.0.1:8081:8081'
 
   nats:
-    image: nats:2.14.5@sha256:026a66a4497c6d7d3eed741781770099c48c755bf3a55b6950d76dd210596eb3
+    image: nats:2.14.6@sha256:d4a8980c1ee558257f196f86693ec919c7a8b8095dd678e2cb5ff1adcfe03ecb
     # -js enables JetStream so recovery.spec can verify durable message continuity
     command:
       ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0', '-js', '-sd', '/tmp/js']
@@ -185,7 +185,7 @@ services:
       - '127.0.0.1:5222:5222' # xmpp c2s (plaintext)
 
   redis:
-    image: redis:8.8.2-alpine@sha256:96cb544fa0af5aa898d160cffb7dae70c3df117190fc123831c64712cda425ff
+    image: redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
     # requirepass covers the default user (AUTH <pass>); the ACL user covers AUTH <user> <pass>
     command:
       [
