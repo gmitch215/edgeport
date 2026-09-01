@@ -58,7 +58,7 @@ services:
       - '127.0.0.1:4222:4222'
 
   ftp:
-    image: stilliard/pure-ftpd:trixie-1.0.50@sha256:83fdc47e6b912a16aa2bbb30c9f577af64705331acbf7d87ab83aabfa4701089
+    image: stilliard/pure-ftpd:trixie-1.0.50@sha256:872002410afd04a369d74429fcdabc39a0d6915fac09d4af916755b2199612aa
     environment:
       PUBLICHOST: '127.0.0.1'
       FTP_USER_NAME: 'tester'
