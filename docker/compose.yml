@@ -136,7 +136,7 @@ services:
       - '127.0.0.1:5515:5515' # readback
 
   smscsim:
-    image: ukarim/smscsim:latest@sha256:673ef3b2c62e3aa34be0528a9034b53e04c4fc2fbf4e65e03225717de8890707
+    image: ukarim/smscsim:latest@sha256:314d3bafa88dc94a5d182c9e0d1dbb87e985a39971f7cf0291362ff5298527fc
     ports:
       - '127.0.0.1:2775:2775' # smpp
       - '127.0.0.1:12775:12775' # http MO injection
