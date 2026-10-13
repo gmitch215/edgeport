@@ -50,7 +50,7 @@ services:
       - '127.0.0.1:8081:8081'
 
   nats:
-    image: nats:2.15.0@sha256:cd3fcd4ecdda44e3a66728a5334af0a959bc3979b32810e033d1c547241cd0f4
+    image: nats:2.15.1@sha256:497de820dd61fc77980a400c71abec6f912dd2b08a685ecb4d64fd20ad9b6868
     # -js enables JetStream so recovery.spec can verify durable message continuity
     command:
       ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0', '-js', '-sd', '/tmp/js']
