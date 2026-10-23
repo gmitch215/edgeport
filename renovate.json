@@ -7,6 +7,12 @@
 			"matchUpdateTypes": ["minor", "patch", "pin", "digest"]
 		},
 		{
+			"description": "a digest-only bump re-runs every lane for no version change; the pin moves with the next tag",
+			"matchDatasources": ["docker"],
+			"matchUpdateTypes": ["digest"],
+			"enabled": false
+		},
+		{
 			"description": "pinned: osixia/openldap digests past sha256:18742e9c break edgeport's plaintext LDAP bind under workerd (slapd behavior change drops the bind connection); see docker/compose.yml",
 			"matchDatasources": ["docker"],
 			"matchPackageNames": ["osixia/openldap"],
