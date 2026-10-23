@@ -16,7 +16,7 @@ services:
       - '127.0.0.1:2222:2222'
 
   dropbear:
-    image: alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+    image: alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
     command:
       - sh
       - -c
@@ -91,7 +91,7 @@ services:
       - '127.0.0.1:636:636'
 
   ldap-seed:
-    image: alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+    image: alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
     depends_on:
       - openldap
     volumes:
@@ -121,7 +121,7 @@ services:
       - '127.0.0.1:61613:61613'
 
   syslog:
-    image: alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+    image: alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
     command:
       - sh
       - -c
