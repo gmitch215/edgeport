@@ -16,7 +16,7 @@ services:
       - '127.0.0.1:2222:2222'
 
   dropbear:
-    image: alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+    image: alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
     command:
       - sh
       - -c
@@ -30,7 +30,7 @@ services:
       - '127.0.0.1:2223:2223'
 
   greenmail:
-    image: greenmail/standalone:2.1.14@sha256:1ef95a966418cd09b7ea91d504d8c0826bbe7a2f6e679a75c601a831587c1626
+    image: greenmail/standalone:2.1.15@sha256:309ba544ea482e5d4265d09921cdab07c8dad2cc4481d715c9b8ff5d3f0a149f
     environment:
       GREENMAIL_OPTS: '-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=tester:testpass@localhost -Dgreenmail.verbose'
     ports:
@@ -50,7 +50,7 @@ services:
       - '127.0.0.1:8081:8081'
 
   nats:
-    image: nats:2.15.1@sha256:76e4b7a718f0b9e1a07442fe62b12973678a93c1ec2d494355f470dd59402490
+    image: nats:2.15.3@sha256:4b83414183aa5fb87cd164962c47eaffd214e84668dc4fa4f1d4c44a3e765ee8
     # -js enables JetStream so recovery.spec can verify durable message continuity
     command:
       ['--user', 'tester', '--pass', 'testpass', '--addr', '0.0.0.0', '-js', '-sd', '/tmp/js']
@@ -91,7 +91,7 @@ services:
       - '127.0.0.1:636:636'
 
   ldap-seed:
-    image: alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+    image: alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
     depends_on:
       - openldap
     volumes:
@@ -104,7 +104,7 @@ services:
     restart: 'no'
 
   mqtt:
-    image: eclipse-mosquitto:2.1.2-alpine@sha256:38c0da4f2ef84284d47b3b3eeea1cb3bdeabe81ee10caf0cd5c5ff61ee3ea408
+    image: eclipse-mosquitto:2.1.4-alpine@sha256:fa12172a051310efe5bcb7a6a11b77bd5faacb82cbacd7742aa758bf024fd8e4
     volumes:
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     ports:
@@ -121,7 +121,7 @@ services:
       - '127.0.0.1:61613:61613'
 
   syslog:
-    image: alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
+    image: alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
     command:
       - sh
       - -c
@@ -185,7 +185,7 @@ services:
       - '127.0.0.1:5222:5222' # xmpp c2s (plaintext)
 
   redis:
-    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    image: redis:8.10.3-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
     # requirepass covers the default user (AUTH <pass>); the ACL user covers AUTH <user> <pass>
     command:
       [
